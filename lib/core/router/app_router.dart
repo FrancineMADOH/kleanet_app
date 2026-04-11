@@ -1,15 +1,33 @@
+// Routeur GoRouter central de l'app Kleanet.
+//
+// Deux choses à retenir :
+//   1. Le routeur écoute AuthProvider (refreshListenable) : toute bascule
+//      de AuthStatus ré-exécute la fonction redirect ci-dessous.
+//   2. La logique de redirect est exhaustive — elle couvre les 3 statuts
+//      × les routes splash/auth/protégées. C'est ici que se joue le
+//      "qui a le droit d'aller où" de l'app.
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/splash_screen.dart';
 
+/// Catalogue centralisé des chemins de route. Les chemins littéraux ne
+/// devraient jamais apparaître ailleurs dans l'app — toujours passer par
+/// une constante ici pour faciliter les renommages.
 class Routes {
   Routes._();
 
   static const splash = '/splash';
   static const auth = '/auth';
   static const home = '/home';
+
+  /// Pattern GoRoute (avec placeholder `:id`) — utilisé côté déclaration.
+  static const orderDetailPattern = '/order/:id';
+
+  /// Construit une URL concrète vers le détail d'une commande.
+  /// Ex: `orderDetail('42')` → `/order/42`. À utiliser côté navigation.
   static String orderDetail(String id) => '/order/$id';
 }
 
@@ -63,7 +81,7 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
         ),
       ),
       GoRoute(
-        path: '/order/:id',
+        path: Routes.orderDetailPattern,
         builder: (_, state) => _StubScreen(
           title: 'Commande ${state.pathParameters['id']}',
           hint: 'Détail commande — TRACKING-01',

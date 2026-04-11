@@ -1,3 +1,13 @@
+// Racine du widget tree de l'app.
+//
+// Ce fichier a UN seul rôle : câbler ensemble les services construits dans
+// main.dart (TokenStorage, ApiClient, AuthProvider) via MultiProvider, puis
+// monter MaterialApp.router avec le GoRouter. Aucune logique métier ici.
+//
+// C'est un StatefulWidget parce que le GoRouter doit être instancié UNE
+// seule fois — si on le recréait à chaque build(), on perdrait l'état de
+// navigation à chaque notifyListeners() de AuthProvider.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +17,9 @@ import 'core/router/app_router.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'shared/theme/app_theme.dart';
 
+/// Widget racine. Reçoit les singletons déjà construits depuis main.dart
+/// via `.value` providers — ça évite de recréer les services à chaque
+/// rebuild et facilite l'injection dans les tests widget.
 class KleanetApp extends StatefulWidget {
   const KleanetApp({
     super.key,

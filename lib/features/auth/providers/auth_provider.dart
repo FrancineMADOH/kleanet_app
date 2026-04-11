@@ -2,6 +2,12 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/auth/token_storage.dart';
 
+/// Statut de session connu par l'app.
+/// - [unknown] : tant que bootstrap() n'a pas encore lu le storage.
+///   Le router l'utilise pour pinner l'écran splash.
+/// - [authenticated] : un access token existe en storage.
+/// - [unauthenticated] : pas de token, l'utilisateur doit passer par /auth.
+
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
 /// Session state machine consumed by the router's auth guard.
@@ -26,20 +32,28 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _status == AuthStatus.authenticated;
   bool get isBootstrapped => _status != AuthStatus.unknown;
 
+  /// Lit le token d'accès persisté et résout le statut. À appeler UNE SEULE
+  /// fois au démarrage (depuis main.dart). Si cette méthode throw, main.dart
+  /// retombe sur signOut() — le provider ne doit jamais rester en `unknown`.
   Future<void> bootstrap() async {
-    debugPrint('[AuthProvider] bootstrap: reading token...');
     final token = await _tokenStorage.readAccessToken();
-    debugPrint('[AuthProvider] bootstrap: token=${token == null ? "null" : "len=${token.length}"}');
     _setStatus(
       token != null && token.isNotEmpty
           ? AuthStatus.authenticated
           : AuthStatus.unauthenticated,
     );
-    debugPrint('[AuthProvider] bootstrap: status=$_status');
+    if (kDebugMode) {
+      debugPrint('[AuthProvider] bootstrap resolved → $_status');
+    }
   }
 
+  /// Marque la session comme authentifiée après un login OTP/OAuth réussi.
+  /// Les tokens doivent avoir été sauvegardés dans TokenStorage AVANT cet appel.
   void markAuthenticated() => _setStatus(AuthStatus.authenticated);
 
+  /// Déconnexion : efface les tokens et bascule en `unauthenticated`.
+  /// Déclenché manuellement (bouton logout) ou automatiquement par ApiClient
+  /// via le callback `onSessionExpired` quand le refresh token n'est plus valide.
   Future<void> signOut() async {
     await _tokenStorage.clear();
     _setStatus(AuthStatus.unauthenticated);
