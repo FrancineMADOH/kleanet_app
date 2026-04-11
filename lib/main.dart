@@ -25,6 +25,8 @@ import 'features/auth/repositories/auth_repository.dart';
 import 'features/catalog/providers/catalog_provider.dart';
 import 'features/catalog/repositories/catalog_cache.dart';
 import 'features/catalog/repositories/catalog_repository.dart';
+import 'features/orders/providers/order_draft_provider.dart';
+import 'features/orders/repositories/order_repository.dart';
 
 /// Entrée de l'app. Tout démarre ici — ne pas ajouter de logique métier
 /// dans ce fichier, seulement du câblage d'initialisation.
@@ -81,10 +83,20 @@ Future<void> main() async {
     }),
   );
 
+  // OrderDraftProvider : vit à l'échelle app mais est reset() à chaque
+  // entrée dans le flux /order/new/garments. On l'instancie ici pour
+  // qu'il soit accessible depuis toutes les routes du flux.
+  final orderRepository = OrderRepository(apiClient: apiClient);
+  final orderDraftProvider = OrderDraftProvider(
+    repository: orderRepository,
+    catalogProvider: catalogProvider,
+  );
+
   runApp(KleanetApp(
     tokenStorage: tokenStorage,
     authProvider: authProvider,
     apiClient: apiClient,
     catalogProvider: catalogProvider,
+    orderDraftProvider: orderDraftProvider,
   ));
 }

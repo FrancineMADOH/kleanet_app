@@ -34,9 +34,16 @@ class ApiEndpoints {
   static const catalogPlans = '$apiPrefix/catalog/plans';
 
   // --- Commandes ---
-  static const orders = '$apiPrefix/orders';
+  // Le slash final est exigé par la route Fastify (`/orders/`) — sans lui
+  // le framework renvoie un 404.
+  static const orders = '$apiPrefix/orders/';
   /// URL détail d'une commande. Ex: orderById('42') → '/api/v1/orders/42'
   static String orderById(String id) => '$apiPrefix/orders/$id';
+
+  // --- Rendez-vous (pickup + delivery) ---
+  // Endpoint séparé pour la prise de rendez-vous. POST /appointments
+  // attend `type`, `scheduled_from` (ISO8601, min +2h), `order_ids`.
+  static const appointments = '$apiPrefix/appointments/';
 
   // --- Abonnements ---
   static const subscriptionPlans = '$apiPrefix/subscription/plans';

@@ -1,0 +1,46 @@
+// Repository Orders — thin wrapper Dio autour de /orders et /appointments.
+//
+// Deux méthodes :
+//   - createOrder(request)           → POST /orders
+//   - schedulePickup(orderId, when)  → POST /appointments (type=pickup)
+//
+// Pourquoi deux appels ? Le backend sépare "commande" et "rendez-vous
+// pickup" — l'API /orders ne prend PAS de date de collecte. On enchaîne
+// les deux depuis le provider pour donner un flux utilisateur unique.
+
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/response_parser.dart';
+import '../models/order_models.dart';
+
+class OrderRepository {
+  OrderRepository({required ApiClient apiClient}) : _apiClient = apiClient;
+
+  final ApiClient _apiClient;
+
+  /// Crée une nouvelle commande. Le prix total n'est PAS à envoyer —
+  /// Odoo le recalcule server-side depuis les pricing rules.
+  Future<Order> createOrder(CreateOrderRequest request) async {
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      ApiEndpoints.orders,
+      data: request.toJson(),
+    );
+    return parseOrThrow(response.data, Order.fromJson, 'create order response');
+  }
+
+  /// Programme un rendez-vous pickup pour [orderId] au moment [scheduledFrom].
+  /// Contrainte backend : [scheduledFrom] doit être au moins 2h dans le futur.
+  Future<void> schedulePickup({
+    required int orderId,
+    required DateTime scheduledFrom,
+  }) async {
+    await _apiClient.post<Map<String, dynamic>>(
+      ApiEndpoints.appointments,
+      data: {
+        'type': 'pickup',
+        'scheduled_from': scheduledFrom.toUtc().toIso8601String(),
+        'order_ids': [orderId],
+      },
+    );
+  }
+}

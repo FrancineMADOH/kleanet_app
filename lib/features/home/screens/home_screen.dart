@@ -9,8 +9,10 @@
 //   3. Offrir un pull-to-refresh pour tester le forceRefresh.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../catalog/models/catalog_models.dart';
@@ -67,6 +69,13 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: _buildBody(catalog),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go(Routes.newOrder),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Nouvelle commande'),
       ),
     );
   }
