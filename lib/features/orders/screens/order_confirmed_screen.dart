@@ -25,6 +25,14 @@ class OrderConfirmedScreen extends StatelessWidget {
     context.go(Routes.home);
   }
 
+  void _viewDetail(BuildContext context) {
+    // On reset le brouillon avant de partir sur le détail pour que si
+    // l'utilisateur revient en arrière via le système, il ne retombe
+    // pas dans l'écran récap avec l'ancien brouillon encore présent.
+    context.read<OrderDraftProvider>().reset();
+    context.go(Routes.orderDetail(order.id.toString()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -103,6 +111,15 @@ class OrderConfirmedScreen extends StatelessWidget {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                     ),
+                    onPressed: () => _viewDetail(context),
+                    child: const Text('Voir le détail'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 48,
+                  width: double.infinity,
+                  child: TextButton(
                     onPressed: () => _backHome(context),
                     child: const Text('Retour à l\'accueil'),
                   ),

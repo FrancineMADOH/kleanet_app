@@ -28,6 +28,9 @@ class AppColors {
   static const textPrimary = Color(0xFF1F2937);   // Titres, contenu principal
   static const textSecondary = Color(0xFF6B7280); // Descriptions, libellés
 
+  // --- Bordures & séparateurs ---
+  static const border = Color(0xFFE2E8F0); // Bordures cartes, lignes timelines
+
   /// Dégradé de marque utilisé sur le splash, les écrans d'auth, les CTA
   /// premium. Orientation top-left → bottom-right pour que le logo ressorte
   /// sur le fond clair en haut et plonge dans le cyan en bas.

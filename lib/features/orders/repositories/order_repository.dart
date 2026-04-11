@@ -28,6 +28,15 @@ class OrderRepository {
     return parseOrThrow(response.data, Order.fromJson, 'create order response');
   }
 
+  /// Récupère le détail d'une commande. Utilisé par l'écran de tracking
+  /// (GET /orders/{id}) — renvoie le même shape que createOrder.
+  Future<Order> getOrderById(int id) async {
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      ApiEndpoints.orderById(id.toString()),
+    );
+    return parseOrThrow(response.data, Order.fromJson, 'order detail response');
+  }
+
   /// Programme un rendez-vous pickup pour [orderId] au moment [scheduledFrom].
   /// Contrainte backend : [scheduledFrom] doit être au moins 2h dans le futur.
   Future<void> schedulePickup({

@@ -98,5 +98,6 @@ Future<void> main() async {
     apiClient: apiClient,
     catalogProvider: catalogProvider,
     orderDraftProvider: orderDraftProvider,
+    orderRepository: orderRepository,
   ));
 }

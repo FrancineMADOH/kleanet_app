@@ -18,6 +18,7 @@ import 'core/router/app_router.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/providers/catalog_provider.dart';
 import 'features/orders/providers/order_draft_provider.dart';
+import 'features/orders/repositories/order_repository.dart';
 import 'shared/theme/app_theme.dart';
 
 /// Widget racine. Reçoit les singletons déjà construits depuis main.dart
@@ -31,6 +32,7 @@ class KleanetApp extends StatefulWidget {
     required this.apiClient,
     required this.catalogProvider,
     required this.orderDraftProvider,
+    required this.orderRepository,
   });
 
   final TokenStorage tokenStorage;
@@ -38,6 +40,7 @@ class KleanetApp extends StatefulWidget {
   final ApiClient apiClient;
   final CatalogProvider catalogProvider;
   final OrderDraftProvider orderDraftProvider;
+  final OrderRepository orderRepository;
 
   @override
   State<KleanetApp> createState() => _KleanetAppState();
@@ -52,6 +55,7 @@ class _KleanetAppState extends State<KleanetApp> {
       providers: [
         Provider<TokenStorage>.value(value: widget.tokenStorage),
         Provider<ApiClient>.value(value: widget.apiClient),
+        Provider<OrderRepository>.value(value: widget.orderRepository),
         ChangeNotifierProvider<AuthProvider>.value(value: widget.authProvider),
         ChangeNotifierProvider<CatalogProvider>.value(
           value: widget.catalogProvider,
