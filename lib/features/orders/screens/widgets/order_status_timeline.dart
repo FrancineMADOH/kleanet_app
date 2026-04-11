@@ -1,13 +1,12 @@
 // Timeline verticale du statut d'une commande.
 //
-// Affiche les 4 étapes du cycle de vie client en colonne :
-//   received → processing → ready_for_pickup → delivered
+// Affiche les 4 étapes du cycle Odoo `bw_kleanet` :
+//   pending → received → ready_for_pickup → delivered
 //
-// Note : le backend expose aussi `pending` (commande créée mais pas
-// encore ramassée). Pour l'UX on le fusionne avec `received` — tant
-// que le linge n'est pas collecté, on considère la commande "à venir".
-// Si `currentStatus == pending`, on affiche l'étape `received` comme
-// courante (pas encore cochée).
+// Le modèle Odoo a été simplifié pour ne conserver que les états
+// réellement utilisés — `in_progress` (et son pendant API `processing`)
+// a été retiré car aucune action ne l'écrivait jamais. Le cycle saute
+// directement de `received` à `ready`.
 //
 // Le rendu adapte chaque étape selon sa position par rapport au
 // statut courant :
@@ -24,10 +23,10 @@ import '../../../../shared/theme/app_colors.dart';
 import '../../models/order_models.dart';
 
 /// Ordre canonique des étapes — l'index dans cette liste définit
-/// la position dans la timeline. `pending` et `cancelled` n'y figurent pas.
+/// la position dans la timeline. `cancelled` n'y figure pas.
 const _timelineSteps = <OrderStatus>[
+  OrderStatus.pending,
   OrderStatus.received,
-  OrderStatus.processing,
   OrderStatus.readyForPickup,
   OrderStatus.delivered,
 ];
@@ -50,20 +49,26 @@ class OrderStatusTimeline extends StatelessWidget {
       return _CancelledBanner();
     }
 
-    // `pending` est fusionné avec `received` pour l'affichage : on
-    // considère que la commande est "en attente de ramassage" sur
-    // l'étape Reçue (index 0, non cochée).
-    final effectiveStatus = currentStatus == OrderStatus.pending
-        ? OrderStatus.received
-        : currentStatus;
-    final currentIndex = _timelineSteps.indexOf(effectiveStatus);
+    final currentIndex = _timelineSteps.indexOf(currentStatus);
+    // `delivered` est un état terminal — tout le cycle est terminé, donc
+    // toutes les étapes (y compris la dernière) doivent s'afficher en
+    // "passées" (vert coché). Sinon l'utilisateur voit une pastille bleue
+    // "courante" sur Livrée et pense que quelque chose est encore à venir.
+    final isTerminal = currentStatus == OrderStatus.delivered;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(_timelineSteps.length, (i) {
         final step = _timelineSteps[i];
-        final state = i < currentIndex
-            ? _StepState.past
-            : (i == currentIndex ? _StepState.current : _StepState.future);
+        final _StepState state;
+        if (isTerminal) {
+          state = _StepState.past;
+        } else if (i < currentIndex) {
+          state = _StepState.past;
+        } else if (i == currentIndex) {
+          state = _StepState.current;
+        } else {
+          state = _StepState.future;
+        }
         return _TimelineRow(
           step: step,
           state: state,
@@ -154,7 +159,7 @@ class _TimelineRow extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    step.label,
+                    step.timelineLabel,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: state == _StepState.current

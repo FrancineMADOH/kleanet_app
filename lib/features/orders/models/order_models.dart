@@ -16,31 +16,50 @@
 // qu'une ESTIMATION côté client avant confirmation.
 
 /// Statuts possibles d'une commande — doit rester synchro avec l'enum
-/// Odoo `laundry.order.state` et la `status` enum de l'OpenAPI.
+/// Odoo `laundry.order.state` (bw_kleanet) et la `status` enum de
+/// l'OpenAPI Fastify. Le cycle réel est 5 états : l'ancien `processing`
+/// (Odoo `in_progress`) a été retiré des trois couches — cf. notes dans
+/// `bw_kleanet/models/laundry_order.py` et `kleanet_api/orders.types.ts`.
 enum OrderStatus {
   pending,
   received,
-  processing,
   readyForPickup,
   delivered,
   cancelled;
 
+  /// Parse un statut venant de l'API. Le fallback sur `received` est
+  /// défensif : si une nouvelle valeur apparaît côté backend (rollout
+  /// d'API en avance sur l'app), on affiche "en traitement" plutôt que
+  /// "en attente" — neutre, honnête, pas trompeur.
   static OrderStatus fromJson(String raw) => switch (raw) {
         'pending' => OrderStatus.pending,
         'received' => OrderStatus.received,
-        'processing' => OrderStatus.processing,
         'ready_for_pickup' => OrderStatus.readyForPickup,
         'delivered' => OrderStatus.delivered,
         'cancelled' => OrderStatus.cancelled,
-        _ => OrderStatus.pending,
+        _ => OrderStatus.received,
       };
 
-  /// Libellé français court pour l'UI (badges / timeline).
+  /// Libellé court — pour badges, chips, récap compact. Doit tenir
+  /// dans un pill de ~100px de large.
   String get label => switch (this) {
         OrderStatus.pending => 'En attente',
-        OrderStatus.received => 'Reçue',
-        OrderStatus.processing => 'En traitement',
+        OrderStatus.received => 'En traitement',
         OrderStatus.readyForPickup => 'Prête',
+        OrderStatus.delivered => 'Livrée',
+        OrderStatus.cancelled => 'Annulée',
+      };
+
+  /// Libellé long — pour la timeline verticale du détail commande.
+  /// Décrit explicitement la phase vécue par le client :
+  ///   - pending         : commande créée, on attend le passage du livreur
+  ///   - received        : collectée et en traitement au hub
+  ///   - readyForPickup  : lavé/plié, prêt à repartir en livraison
+  ///   - delivered       : rendu au client
+  String get timelineLabel => switch (this) {
+        OrderStatus.pending => 'En attente de ramassage',
+        OrderStatus.received => 'Collectée et en traitement',
+        OrderStatus.readyForPickup => 'Prête à livrer',
         OrderStatus.delivered => 'Livrée',
         OrderStatus.cancelled => 'Annulée',
       };

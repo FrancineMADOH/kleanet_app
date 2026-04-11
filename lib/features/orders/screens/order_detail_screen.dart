@@ -162,9 +162,10 @@ class _StatusBadge extends StatelessWidget {
             AppColors.warning.withValues(alpha: 0.15),
             AppColors.warning,
           ),
-        OrderStatus.received ||
-        OrderStatus.processing =>
-          (AppColors.primary.withValues(alpha: 0.1), AppColors.primary),
+        OrderStatus.received => (
+            AppColors.primary.withValues(alpha: 0.1),
+            AppColors.primary,
+          ),
         OrderStatus.readyForPickup => (
             AppColors.accent1.withValues(alpha: 0.15),
             AppColors.accent1,
