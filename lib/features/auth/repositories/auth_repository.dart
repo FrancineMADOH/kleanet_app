@@ -3,10 +3,15 @@
 // Le repository est la SEULE couche autorisée à appeler ApiClient pour le
 // module auth. Le provider consomme uniquement des méthodes typées d'ici.
 // Règle d'or : pas de UI, pas de ChangeNotifier — juste des Future<>.
+//
+// Pour la conversion JSON → modèle, on délègue au helper partagé
+// `parseOrThrow` (core/api/response_parser.dart) qui garantit que toute
+// erreur de parsing devient une `ApiException(BAD_RESPONSE)` au lieu
+// de laisser un TypeError remonter dans l'UI.
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
-import '../../../core/api/api_exception.dart';
+import '../../../core/api/response_parser.dart';
 import '../models/auth_models.dart';
 
 class AuthRepository {
@@ -33,7 +38,7 @@ class AuthRepository {
       ApiEndpoints.authPhoneVerify,
       data: {'phone': phoneE164, 'code': code},
     );
-    return _parseOrThrow(
+    return parseOrThrow(
       response.data,
       VerifyOtpResult.fromJson,
       'verify response',
@@ -46,37 +51,11 @@ class AuthRepository {
   Future<UserProfile> fetchProfile() async {
     final response =
         await _apiClient.get<Map<String, dynamic>>(ApiEndpoints.profile);
-    return _parseOrThrow(
+    return parseOrThrow(
       response.data,
       UserProfile.fromJson,
       'profile response',
     );
-  }
-
-  /// Convertit un payload API en modèle typé, ou lève une ApiException
-  /// `BAD_RESPONSE` si le JSON est absent/malformé. Garantit que l'UI ne
-  /// voit JAMAIS un TypeError Dart remonté depuis `Map.fromJson`.
-  T _parseOrThrow<T>(
-    Map<String, dynamic>? data,
-    T Function(Map<String, dynamic>) parser,
-    String label,
-  ) {
-    if (data == null) {
-      throw ApiException(
-        statusCode: 0,
-        code: 'BAD_RESPONSE',
-        message: 'Réponse serveur invalide ($label).',
-      );
-    }
-    try {
-      return parser(data);
-    } catch (_) {
-      throw ApiException(
-        statusCode: 0,
-        code: 'BAD_RESPONSE',
-        message: 'Réponse serveur invalide ($label).',
-      );
-    }
   }
 
   /// Révoque le refresh token côté backend (optionnel — on peut logout

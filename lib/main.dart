@@ -22,6 +22,9 @@ import 'core/auth/token_storage.dart';
 import 'core/config/env.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/repositories/auth_repository.dart';
+import 'features/catalog/providers/catalog_provider.dart';
+import 'features/catalog/repositories/catalog_cache.dart';
+import 'features/catalog/repositories/catalog_repository.dart';
 
 /// Entrée de l'app. Tout démarre ici — ne pas ajouter de logique métier
 /// dans ce fichier, seulement du câblage d'initialisation.
@@ -48,6 +51,16 @@ Future<void> main() async {
     authRepository: authRepository,
   );
 
+  // Catalogue public (no auth) — peut se charger en parallèle du bootstrap
+  // auth. Gain : au moment où l'utilisateur arrive sur /home, les données
+  // sont déjà là (ou au moins le cache).
+  final catalogRepository = CatalogRepository(apiClient: apiClient);
+  final catalogCache = CatalogCache();
+  final catalogProvider = CatalogProvider(
+    repository: catalogRepository,
+    cache: catalogCache,
+  );
+
   unawaited(
     authProvider.bootstrap().catchError((Object error, StackTrace stack) {
       if (kDebugMode) {
@@ -57,9 +70,21 @@ Future<void> main() async {
     }),
   );
 
+  // Preload catalog en fire-and-forget — les erreurs métier sont déjà
+  // capturées dans le provider (errorMessage). Le catchError ici est un
+  // garde-fou pour toute exception inattendue qui remonterait au zone.
+  unawaited(
+    catalogProvider.load().catchError((Object error, StackTrace stack) {
+      if (kDebugMode) {
+        debugPrint('[Kleanet] catalog preload failed: $error');
+      }
+    }),
+  );
+
   runApp(KleanetApp(
     tokenStorage: tokenStorage,
     authProvider: authProvider,
     apiClient: apiClient,
+    catalogProvider: catalogProvider,
   ));
 }

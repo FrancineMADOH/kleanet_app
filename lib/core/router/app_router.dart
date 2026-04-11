@@ -15,6 +15,7 @@ import '../../features/auth/screens/auth_screen.dart';
 import '../../features/auth/screens/otp_screen.dart';
 import '../../features/auth/screens/phone_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
+import '../../features/home/screens/home_screen.dart';
 
 /// Catalogue centralisé des chemins de route. Les chemins littéraux ne
 /// devraient jamais apparaître ailleurs dans l'app — toujours passer par
@@ -89,10 +90,7 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
       ),
       GoRoute(
         path: Routes.home,
-        builder: (_, __) => const _StubScreen(
-          title: 'Accueil',
-          hint: 'Home shell — à venir',
-        ),
+        builder: (_, __) => const HomeScreen(),
       ),
       GoRoute(
         path: Routes.orderDetailPattern,

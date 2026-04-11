@@ -27,8 +27,11 @@ class ApiEndpoints {
   static const profileLocation = '$apiPrefix/profile/location'; // PATCH géolocalisation
 
   // --- Catalogue garments + tarifs ---
-  static const catalog = '$apiPrefix/catalog';
-  static const pricingRules = '$apiPrefix/catalog/pricing-rules';
+  // Le contrat réel expose un endpoint unique `catalog/services` qui
+  // retourne un payload combiné {garment_types, pricing_rules, cached_at}.
+  // Il n'y a pas d'endpoint séparé pour les matières ni les règles de prix.
+  static const catalogServices = '$apiPrefix/catalog/services';
+  static const catalogPlans = '$apiPrefix/catalog/plans';
 
   // --- Commandes ---
   static const orders = '$apiPrefix/orders';

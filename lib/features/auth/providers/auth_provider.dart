@@ -94,10 +94,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       _profile = await _authRepository.fetchProfile();
       _setStatus(AuthStatus.authenticated);
-    } catch (e) {
+    } on Exception catch (e) {
       // 401 → ApiClient a déjà tenté un refresh et/ou wipe les tokens.
       // Tout autre cas (réseau down, 500) → on préfère débloquer l'app
-      // en considérant la session inconnue comme "à refaire".
+      // en considérant la session inconnue comme "à refaire". On ne
+      // catche que Exception : les Error (assertion, type) doivent
+      // remonter en dev pour ne pas masquer un bug.
       if (kDebugMode) debugPrint('[AuthProvider] bootstrap check failed: $e');
       await _tokenStorage.clear();
       _setStatus(AuthStatus.unauthenticated);
@@ -169,8 +171,12 @@ class AuthProvider extends ChangeNotifier {
       // vide au prochain boot et ça alimente le header du /home.
       try {
         _profile = await _authRepository.fetchProfile();
-      } catch (_) {
+      } on Exception catch (e) {
         // Profil non bloquant : la session est OK, l'UI home re-fetchera.
+        // On log quand même pour pouvoir diagnostiquer si ça arrive.
+        if (kDebugMode) {
+          debugPrint('[AuthProvider] post-verify profile fetch failed: $e');
+        }
       }
       _setStatus(AuthStatus.authenticated);
       return true;
