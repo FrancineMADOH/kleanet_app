@@ -11,6 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/auth/screens/auth_screen.dart';
+import '../../features/auth/screens/otp_screen.dart';
+import '../../features/auth/screens/phone_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
 
 /// Catalogue centralisé des chemins de route. Les chemins littéraux ne
@@ -21,6 +24,8 @@ class Routes {
 
   static const splash = '/splash';
   static const auth = '/auth';
+  static const authPhone = '/auth/phone';
+  static const authOtp = '/auth/otp';
   static const home = '/home';
 
   /// Pattern GoRoute (avec placeholder `:id`) — utilisé côté déclaration.
@@ -68,10 +73,19 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
       ),
       GoRoute(
         path: Routes.auth,
-        builder: (_, __) => const _StubScreen(
-          title: 'Auth',
-          hint: 'Flux OTP — AUTH-01',
-        ),
+        builder: (_, __) => const AuthScreen(),
+        routes: [
+          // Sous-routes : /auth/phone et /auth/otp — elles partagent le
+          // même statut "non authentifié" et le même AuthProvider.
+          GoRoute(
+            path: 'phone',
+            builder: (_, __) => const PhoneScreen(),
+          ),
+          GoRoute(
+            path: 'otp',
+            builder: (_, __) => const OtpScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.home,

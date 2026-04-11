@@ -13,11 +13,13 @@ class ApiEndpoints {
   static const apiPrefix = '/api/v1';
 
   // --- Auth ---
-  static const authRequestOtp = '$apiPrefix/auth/request-otp';  // Envoie OTP SMS
-  static const authVerifyOtp = '$apiPrefix/auth/verify-otp';    // Vérifie OTP + login
-  static const authRefresh = '$apiPrefix/auth/refresh';         // Renouvelle access token
-  static const authGoogle = '$apiPrefix/auth/google';           // OAuth Google
-  static const authFacebook = '$apiPrefix/auth/facebook';       // OAuth Facebook
+  // Noms alignés sur l'OpenAPI Fastify (docs/openapi.json) — le backend
+  // utilise "phone/send" et "phone/verify", pas "request-otp"/"verify-otp".
+  static const authPhoneSend = '$apiPrefix/auth/phone/send';     // Envoie OTP SMS
+  static const authPhoneVerify = '$apiPrefix/auth/phone/verify'; // Vérifie OTP + login
+  static const authRefresh = '$apiPrefix/auth/refresh';          // Renouvelle access token
+  static const authGoogle = '$apiPrefix/auth/google';            // OAuth Google
+  static const authFacebook = '$apiPrefix/auth/facebook';        // OAuth Facebook
   static const authLogout = '$apiPrefix/auth/logout';
 
   // --- Profil ---

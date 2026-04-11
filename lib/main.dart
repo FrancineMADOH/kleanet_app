@@ -21,6 +21,7 @@ import 'core/api/api_client.dart';
 import 'core/auth/token_storage.dart';
 import 'core/config/env.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/repositories/auth_repository.dart';
 
 /// Entrée de l'app. Tout démarre ici — ne pas ajouter de logique métier
 /// dans ce fichier, seulement du câblage d'initialisation.
@@ -31,11 +32,20 @@ Future<void> main() async {
     debugPrint('[Kleanet] env=${Env.envName} apiBaseUrl=${Env.apiBaseUrl}');
   }
 
+  // Ordre de construction important : ApiClient dépend de TokenStorage,
+  // AuthRepository dépend de ApiClient, AuthProvider dépend des deux.
+  // Le chaînage "apiClient.onSessionExpired = authProvider.signOut" ne peut
+  // se faire qu'après construction → on passe par un late final.
+  late final AuthProvider authProvider;
   final tokenStorage = TokenStorage();
-  final authProvider = AuthProvider(tokenStorage: tokenStorage);
   final apiClient = ApiClient(
     tokenStorage: tokenStorage,
-    onSessionExpired: authProvider.signOut,
+    onSessionExpired: () => authProvider.signOut(),
+  );
+  final authRepository = AuthRepository(apiClient: apiClient);
+  authProvider = AuthProvider(
+    tokenStorage: tokenStorage,
+    authRepository: authRepository,
   );
 
   unawaited(
