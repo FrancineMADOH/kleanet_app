@@ -1,55 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'shared/theme/app_colors.dart';
-import 'shared/theme/app_text_styles.dart';
+import 'core/api/api_client.dart';
+import 'core/auth/token_storage.dart';
+import 'core/router/app_router.dart';
+import 'features/auth/providers/auth_provider.dart';
 import 'shared/theme/app_theme.dart';
 
-class KleanetApp extends StatelessWidget {
-  const KleanetApp({super.key});
+class KleanetApp extends StatefulWidget {
+  const KleanetApp({
+    super.key,
+    required this.tokenStorage,
+    required this.authProvider,
+    required this.apiClient,
+  });
+
+  final TokenStorage tokenStorage;
+  final AuthProvider authProvider;
+  final ApiClient apiClient;
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kleanet',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      home: const _SplashPlaceholder(),
-    );
-  }
+  State<KleanetApp> createState() => _KleanetAppState();
 }
 
-class _SplashPlaceholder extends StatelessWidget {
-  const _SplashPlaceholder();
+class _KleanetAppState extends State<KleanetApp> {
+  late final _router = buildAppRouter(widget.authProvider);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
-        child: SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/images/logo/logo_complet.png',
-                  width: 220,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Laverie à domicile à Yaoundé',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return MultiProvider(
+      providers: [
+        Provider<TokenStorage>.value(value: widget.tokenStorage),
+        Provider<ApiClient>.value(value: widget.apiClient),
+        ChangeNotifierProvider<AuthProvider>.value(value: widget.authProvider),
+      ],
+      child: MaterialApp.router(
+        title: 'Kleanet',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        routerConfig: _router,
       ),
     );
   }
