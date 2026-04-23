@@ -191,13 +191,20 @@ class CreateOrderRequest {
   const CreateOrderRequest({
     required this.lines,
     this.notes,
+    this.subscriptionId,
   });
 
   final List<CreateOrderLine> lines;
   final String? notes;
 
+  /// ID de l'abonnement actif du client — si fourni, l'API lie la commande
+  /// à l'abonnement dans Odoo (subscription_id sur laundry.order) et
+  /// les commandes sont comptabilisées dans la consommation du quota.
+  final int? subscriptionId;
+
   Map<String, dynamic> toJson() => {
         'lines': lines.map((l) => l.toJson()).toList(),
         if (notes != null && notes!.isNotEmpty) 'notes': notes,
+        if (subscriptionId != null) 'subscription_id': subscriptionId,
       };
 }

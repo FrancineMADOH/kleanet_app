@@ -6,8 +6,15 @@
 // Comportement :
 //   - Affiche le récapitulatif du plan choisi (prix, kg, pièces, pickups).
 //   - "Confirmer" → appelle SubscriptionProvider.subscribe(planId).
-//   - Succès → pop + retour au hub (qui affiche maintenant le dashboard).
+//   - Succès → navigation vers /subscription (le hub affiche _PendingPage).
 //   - Erreur (ex: 409 ALREADY_SUBSCRIBED) → SnackBar d'erreur, reste sur l'écran.
+//
+// UX améliorée (StatefulWidget) :
+//   - Le bouton disparaît dès le premier tap (_submitted = true) ; un message
+//     de confirmation inline remplace immédiatement le CTA sans attendre la
+//     réponse réseau → l'utilisateur reçoit un feedback dans la même frame.
+//   - En cas d'erreur API, _submitted repasse à false : le bouton réapparaît
+//     pour permettre une nouvelle tentative, et un SnackBar décrit l'erreur.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -20,21 +27,38 @@ import '../models/subscription_models.dart';
 import '../providers/subscription_provider.dart';
 import 'subscription_hub_screen.dart' show SubscriptionSectionLabel;
 
-class SubscribeConfirmScreen extends StatelessWidget {
+class SubscribeConfirmScreen extends StatefulWidget {
   const SubscribeConfirmScreen({super.key, required this.plan});
 
   final SubscriptionPlan plan;
 
-  Future<void> _confirm(BuildContext context) async {
-    final provider = context.read<SubscriptionProvider>();
-    final success = await provider.subscribe(plan.id);
+  @override
+  State<SubscribeConfirmScreen> createState() => _SubscribeConfirmScreenState();
+}
 
-    if (!context.mounted) return;
+class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
+  // Passe à true dès le premier tap sur "Confirmer" — le bouton disparaît
+  // immédiatement dans la même frame et est remplacé par le message inline.
+  // Repasse à false uniquement si l'appel API échoue, pour réafficher le bouton.
+  bool _submitted = false;
+
+  Future<void> _confirm() async {
+    // 1. Masquer le bouton immédiatement — feedback instantané pour l'utilisateur.
+    setState(() => _submitted = true);
+
+    final provider = context.read<SubscriptionProvider>();
+
+    // 2. Appel API en arrière-plan.
+    final success = await provider.subscribe(widget.plan.id);
+
+    if (!mounted) return;
 
     if (success) {
-      // Pop de cet écran ET de PlansScreen → retour au hub avec dashboard.
+      // 3. Succès → retour au hub qui affiche maintenant _PendingPage.
       context.go(Routes.subscription);
     } else {
+      // 4. Erreur → réafficher le bouton + SnackBar descriptif.
+      setState(() => _submitted = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(provider.subscribeError ?? 'Erreur de souscription.'),
@@ -46,7 +70,9 @@ class SubscribeConfirmScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<SubscriptionProvider>();
+    // On écoute le provider pour accéder à isSubscribing si besoin futur,
+    // mais la logique de visibilité du bouton repose sur _submitted (local).
+    context.watch<SubscriptionProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -77,7 +103,7 @@ class SubscribeConfirmScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  plan.name,
+                  widget.plan.name,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 22,
@@ -87,7 +113,7 @@ class SubscribeConfirmScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${CurrencyUtils.formatXAF(plan.recurringFee)} ${plan.billingCycle.label}',
+                  '${CurrencyUtils.formatXAF(widget.plan.recurringFee)} ${widget.plan.billingCycle.label}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
@@ -102,13 +128,13 @@ class SubscribeConfirmScreen extends StatelessWidget {
                 _SummaryCard(
                   rows: [
                     ('Poids inclus',
-                        '${plan.includedWeightKg.toStringAsFixed(0)} kg'),
+                        '${widget.plan.includedWeightKg.toStringAsFixed(0)} kg'),
                     ('Pièces incluses',
-                        '${plan.includedPieces.toStringAsFixed(0)} pièces'),
+                        '${widget.plan.includedPieces.toStringAsFixed(0)} pièces'),
                     ('Pickups / semaine',
-                        '${plan.includedPickupsPerWeek}'),
+                        '${widget.plan.includedPickupsPerWeek}'),
                     ('Surplus au-delà du quota',
-                        '${CurrencyUtils.formatXAF(plan.overagePricePerKg)} / kg'),
+                        '${CurrencyUtils.formatXAF(widget.plan.overagePricePerKg)} / kg'),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -142,40 +168,13 @@ class SubscribeConfirmScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Bouton de confirmation fixé en bas.
+          // Zone CTA fixée en bas : bouton OU message de confirmation inline.
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed:
-                      provider.isSubscribing ? null : () => _confirm(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: provider.isSubscribing
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor:
-                                AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Confirmer l\'abonnement',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
-                ),
-              ),
+              child: _submitted
+                  ? _SubmittedConfirmation()
+                  : _ConfirmButton(onTap: _confirm),
             ),
           ),
         ],
@@ -184,6 +183,110 @@ class SubscribeConfirmScreen extends StatelessWidget {
   }
 }
 
+// ----------------------------------------------------------------
+// CTA : bouton "Confirmer l'abonnement"
+// ----------------------------------------------------------------
+
+/// Bouton principal affiché tant que l'utilisateur n'a pas encore tapé.
+class _ConfirmButton extends StatelessWidget {
+  const _ConfirmButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Confirmer l\'abonnement',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// Message de confirmation inline (affiché après le tap)
+// ----------------------------------------------------------------
+
+/// Remplace le bouton immédiatement après le premier tap.
+/// Informe l'utilisateur que la demande est bien en cours de traitement
+/// sans qu'il ait à attendre la réponse réseau.
+class _SubmittedConfirmation extends StatelessWidget {
+  const _SubmittedConfirmation();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        // Fond teinté warning, identique au style _OverageNote du hub.
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.warning.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Icône sablier — signal visuel d'attente.
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.hourglass_top_rounded,
+              size: 22,
+              color: AppColors.warning,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Titre.
+                Text(
+                  'Demande envoyée !',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.warning,
+                  ),
+                ),
+                SizedBox(height: 4),
+                // Corps.
+                Text(
+                  'Notre équipe vous contactera pour confirmer la réception '
+                  'du paiement et activer votre abonnement.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.warning,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// Récapitulatif du plan (tableau lignes / valeurs)
+// ----------------------------------------------------------------
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.rows});

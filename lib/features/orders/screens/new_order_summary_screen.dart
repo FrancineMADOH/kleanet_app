@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../providers/order_draft_provider.dart';
 
 class NewOrderSummaryScreen extends StatelessWidget {
@@ -18,7 +19,10 @@ class NewOrderSummaryScreen extends StatelessWidget {
 
   Future<void> _confirm(BuildContext context) async {
     final draft = context.read<OrderDraftProvider>();
-    final order = await draft.submit();
+    // Passe l'id de l'abonnement actif si disponible — l'API lie alors
+    // la commande ET le rendez-vous à l'abonnement dans Odoo.
+    final subId = context.read<SubscriptionProvider>().subscription?.id;
+    final order = await draft.submit(subscriptionId: subId);
     if (!context.mounted) return;
     if (order == null) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -57,10 +57,12 @@ class OrderRepository {
   }
 
   /// Programme un rendez-vous pickup pour [orderId] au moment [scheduledFrom].
+  /// [subscriptionId] : si fourni, lie le RDV à l'abonnement actif dans Odoo.
   /// Contrainte backend : [scheduledFrom] doit être au moins 2h dans le futur.
   Future<void> schedulePickup({
     required int orderId,
     required DateTime scheduledFrom,
+    int? subscriptionId,
   }) async {
     await _apiClient.post<Map<String, dynamic>>(
       ApiEndpoints.appointments,
@@ -68,6 +70,7 @@ class OrderRepository {
         'type': 'pickup',
         'scheduled_from': scheduledFrom.toUtc().toIso8601String(),
         'order_ids': [orderId],
+        if (subscriptionId != null) 'subscription_id': subscriptionId,
       },
     );
   }

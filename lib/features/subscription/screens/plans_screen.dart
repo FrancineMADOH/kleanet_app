@@ -66,7 +66,8 @@ class _PlansScreenState extends State<PlansScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: provider.plans.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) => _PlanCard(plan: provider.plans[i]),

@@ -228,6 +228,19 @@ class _Dashboard extends StatelessWidget {
           color: _barColor(weightRatio),
         ),
         const SizedBox(height: 12),
+        // Barre pièces.
+        _UsageBar(
+          label: 'Pièces',
+          used: '${(subscription.includedPieces - usage.remainingPieces).toStringAsFixed(0)} pcs',
+          remaining: '${usage.remainingPieces.toStringAsFixed(0)} pièces restantes',
+          ratio: subscription.includedPieces > 0
+              ? ((subscription.includedPieces - usage.remainingPieces) / subscription.includedPieces).clamp(0.0, 1.0)
+              : 0.0,
+          color: _barColor(subscription.includedPieces > 0
+              ? ((subscription.includedPieces - usage.remainingPieces) / subscription.includedPieces).clamp(0.0, 1.0)
+              : 0.0),
+        ),
+        const SizedBox(height: 12),
         // Commandes ce mois.
         _InfoTile(
           icon: Icons.receipt_long,

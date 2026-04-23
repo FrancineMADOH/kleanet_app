@@ -151,10 +151,12 @@ class OrderDraftProvider extends ChangeNotifier {
   /// Soumet la commande au backend. Enchaîne :
   ///   1. POST /orders           → récupère l'id de la commande.
   ///   2. POST /appointments     → programme le pickup au créneau choisi.
+  /// [subscriptionId] : si le client a un abonnement actif, passer son id
+  /// pour lier la commande ET le rendez-vous à l'abonnement dans Odoo.
   /// Si le POST appointments échoue, la commande existe déjà côté Odoo —
   /// on retourne quand même l'Order et on log l'erreur. L'utilisateur
   /// pourra re-programmer depuis l'écran détail plus tard.
-  Future<Order?> submit() async {
+  Future<Order?> submit({int? subscriptionId}) async {
     if (!canSubmit) return null;
 
     _isSubmitting = true;
@@ -171,6 +173,7 @@ class OrderDraftProvider extends ChangeNotifier {
                 ))
             .toList(),
         notes: _notes.trim().isEmpty ? null : _notes.trim(),
+        subscriptionId: subscriptionId,
       );
 
       final order = await _repository.createOrder(request);
@@ -179,6 +182,7 @@ class OrderDraftProvider extends ChangeNotifier {
         await _repository.schedulePickup(
           orderId: order.id,
           scheduledFrom: _pickupAt!,
+          subscriptionId: subscriptionId,
         );
       } on ApiException catch (e) {
         // La commande est créée, mais le pickup a échoué. On ne bloque
