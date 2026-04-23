@@ -18,6 +18,7 @@ import 'core/router/app_router.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/providers/catalog_provider.dart';
 import 'features/orders/providers/order_draft_provider.dart';
+import 'features/orders/providers/orders_list_provider.dart';
 import 'features/orders/repositories/order_repository.dart';
 import 'features/subscription/providers/subscription_provider.dart';
 import 'shared/theme/app_theme.dart';
@@ -34,6 +35,7 @@ class KleanetApp extends StatefulWidget {
     required this.catalogProvider,
     required this.orderDraftProvider,
     required this.orderRepository,
+    required this.ordersListProvider,
     required this.subscriptionProvider,
   });
 
@@ -43,6 +45,7 @@ class KleanetApp extends StatefulWidget {
   final CatalogProvider catalogProvider;
   final OrderDraftProvider orderDraftProvider;
   final OrderRepository orderRepository;
+  final OrdersListProvider ordersListProvider;
   final SubscriptionProvider subscriptionProvider;
 
   @override
@@ -65,6 +68,14 @@ class _KleanetAppState extends State<KleanetApp> {
         ),
         ChangeNotifierProvider<OrderDraftProvider>.value(
           value: widget.orderDraftProvider,
+        ),
+        // OrdersListProvider au niveau racine : l'onglet Commandes de HomeScreen
+        // (IndexedStack) en a besoin sans factory scoped. L'instance est partagée
+        // avec la route /orders dans app_router.dart (la route crée sa propre
+        // factory — les deux coexistent sans conflit car la route pop son scope
+        // à la fermeture de l'écran).
+        ChangeNotifierProvider<OrdersListProvider>.value(
+          value: widget.ordersListProvider,
         ),
         ChangeNotifierProvider<SubscriptionProvider>.value(
           value: widget.subscriptionProvider,

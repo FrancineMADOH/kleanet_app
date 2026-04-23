@@ -155,7 +155,7 @@ class _NewOrderPickupScreenState extends State<NewOrderPickupScreen> {
               ),
               onPressed: pickupAt == null
                   ? null
-                  : () => context.go(Routes.newOrderSummary),
+                  : () => context.push(Routes.newOrderSummary),
               child: const Text('Voir le récapitulatif'),
             ),
           ),

@@ -1,12 +1,17 @@
-// Home shell temporaire — affiche la liste du catalogue récupéré.
+// Shell de navigation principale — 4 onglets via BottomNavigationBar.
 //
-// C'est UN écran transitoire : CATALOG-01 exige juste "chaque article
-// affiche nom + prix". En ORDER-01 on remplacera ce shell par un vrai
-// Home avec bottom navigation, sections promos, abonnement, etc. Pour
-// l'instant il sert surtout à :
-//   1. Valider visuellement le catalog provider (loading / data / error).
-//   2. Offrir un bouton logout pour tester la bascule de session.
-//   3. Offrir un pull-to-refresh pour tester le forceRefresh.
+// Remplace l'ancien écran transitoire (CATALOG-01) par la vraie architecture
+// de navigation de l'app. L'IndexedStack garantit que l'état de chaque onglet
+// est préservé lors des changements de tab (OrdersListScreen ne recharge pas
+// en quittant puis revenant sur l'onglet Commandes).
+//
+// Structure des onglets :
+//   0 — Accueil     : catalogue de vêtements (pull-to-refresh)
+//   1 — Commandes   : OrdersListScreen (filtre + liste)
+//   2 — Abonnement  : SubscriptionHubScreen (dashboard / page de vente)
+//   3 — Profil      : placeholder "Bientôt disponible"
+//
+// FAB "Nouvelle commande" visible uniquement sur l'onglet Accueil (index 0).
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +22,8 @@ import '../../../shared/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../catalog/models/catalog_models.dart';
 import '../../catalog/providers/catalog_provider.dart';
+import '../../orders/screens/orders_list_screen.dart';
+import '../../subscription/screens/subscription_hub_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +33,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Onglet courant — 0 = Accueil, 1 = Commandes, 2 = Abonnement, 3 = Profil.
+  int _currentIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -49,38 +59,114 @@ class _HomeScreenState extends State<HomeScreen> {
     // automatiquement sur /auth quand AuthStatus passe à unauthenticated.
   }
 
+  // Titre de l'AppBar selon l'onglet actif.
+  String get _appBarTitle => switch (_currentIndex) {
+        0 => 'Kleanet',
+        1 => 'Mes commandes',
+        2 => 'Mon abonnement',
+        3 => 'Profil',
+        _ => 'Kleanet',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        // Pas de bouton retour — ce sont des onglets racine.
+        automaticallyImplyLeading: false,
+        title: Text(_appBarTitle),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        // Bouton déconnexion uniquement sur l'onglet Accueil.
+        actions: [
+          if (_currentIndex == 0)
+            IconButton(
+              tooltip: 'Se déconnecter',
+              icon: const Icon(Icons.logout),
+              onPressed: _handleLogout,
+            ),
+        ],
+      ),
+      // IndexedStack conserve l'état de chaque onglet en mémoire —
+      // OrdersListScreen ne recharge pas ses données lors d'un retour sur l'onglet.
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          // Onglet 0 — Catalogue (RefreshIndicator sur la liste seulement).
+          RefreshIndicator(
+            onRefresh: _refresh,
+            child: _CatalogTab(),
+          ),
+          // Onglet 1 — Liste des commandes.
+          // embedded: true → pas de Scaffold interne, le Scaffold parent suffit.
+          // OrdersListProvider injecté dans le MultiProvider racine (app.dart).
+          const OrdersListScreen(embedded: true),
+          // Onglet 2 — Hub abonnement.
+          // embedded: true → même raison que ci-dessus.
+          // SubscriptionProvider injecté dans le MultiProvider racine (app.dart).
+          const SubscriptionHubScreen(embedded: true),
+          // Onglet 3 — Profil (placeholder PROFILE-01).
+          const _ProfilePlaceholder(),
+        ],
+      ),
+      // FAB uniquement sur l'onglet Accueil — context.push pour conserver
+      // la capacité à revenir sur /home via le bouton retour Android.
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push(Routes.newOrder),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Nouvelle commande'),
+            )
+          : null,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        selectedItemColor: AppColors.accent1,
+        unselectedItemColor: AppColors.textSecondary,
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long_outlined),
+            activeIcon: Icon(Icons.receipt_long),
+            label: 'Commandes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.workspace_premium_outlined),
+            activeIcon: Icon(Icons.workspace_premium),
+            label: 'Abonnement',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// Onglet 0 — Catalogue
+// ----------------------------------------------------------------
+
+/// Contenu de l'onglet Accueil : header + liste des types de vêtements.
+/// Les tuiles "Mes commandes" et "Mon abonnement" ont été retirées car
+/// ces fonctions sont maintenant accessibles via la barre de navigation.
+class _CatalogTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kleanet'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            tooltip: 'Se déconnecter',
-            icon: const Icon(Icons.logout),
-            onPressed: _handleLogout,
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: _buildBody(catalog),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go(Routes.newOrder),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Nouvelle commande'),
-      ),
-    );
-  }
-
-  Widget _buildBody(CatalogProvider catalog) {
     // 1. Chargement initial, aucune donnée en cache → spinner plein écran.
     if (catalog.isLoading && catalog.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -102,7 +188,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           Center(
             child: ElevatedButton(
-              onPressed: _refresh,
+              // onPressed accède à CatalogProvider via un Builder pour éviter
+              // un context capturé trop haut dans l'arbre (StatelessWidget).
+              onPressed: () =>
+                  context.read<CatalogProvider>().load(forceRefresh: true),
               child: const Text('Réessayer'),
             ),
           ),
@@ -110,17 +199,16 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // 3. Cas nominal — raccourci "Mes commandes" + liste des types de vêtements.
+    // 3. Cas nominal — header catalogue + liste des types de vêtements.
     final types = catalog.garmentTypes;
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: types.length + 3, // +1 tuile commandes, +1 tuile abonnement, +1 header catalogue
+      // +1 pour le header catalogue (index 0), puis les types à partir de index 1.
+      itemCount: types.length + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        if (index == 0) return const _MyOrdersTile();
-        if (index == 1) return const _SubscriptionTile();
-        if (index == 2) return _HeaderCard(fetchedAt: catalog.fetchedAt);
-        final type = types[index - 3];
+        if (index == 0) return _HeaderCard(fetchedAt: catalog.fetchedAt);
+        final type = types[index - 1];
         return _GarmentCard(
           type: type,
           priceLabel: catalog.formattedPriceFor(type),
@@ -130,99 +218,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Tuile d'accès rapide à la liste des commandes — placée en tête du home
-/// pour que l'utilisateur puisse consulter ses commandes sans chercher.
-class _MyOrdersTile extends StatelessWidget {
-  const _MyOrdersTile();
+// ----------------------------------------------------------------
+// Onglet 3 — Profil (placeholder)
+// ----------------------------------------------------------------
+
+/// Placeholder affiché en attendant l'implémentation de PROFILE-01.
+class _ProfilePlaceholder extends StatelessWidget {
+  const _ProfilePlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push(Routes.orders),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.receipt_long, color: Colors.white, size: 24),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mes commandes',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    'Suivre mes commandes en cours',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person, size: 64, color: AppColors.textSecondary),
+          SizedBox(height: 16),
+          Text(
+            'Profil',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
-            Icon(Icons.chevron_right, color: Colors.white),
-          ],
-        ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Bientôt disponible',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Tuile d'accès à l'abonnement — icône premium sur fond cyan.
-class _SubscriptionTile extends StatelessWidget {
-  const _SubscriptionTile();
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push(Routes.subscription),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.accent1,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.workspace_premium, color: Colors.white, size: 24),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mon abonnement',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    'Voir mes avantages et ma consommation',
-                    style: TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// ----------------------------------------------------------------
+// Widgets partagés du catalogue (inchangés depuis CATALOG-01)
+// ----------------------------------------------------------------
 
 /// Carte d'en-tête — affiche le timestamp de dernière MAJ du catalogue.
 /// Utile en debug pour vérifier que le cache / refresh marchent.

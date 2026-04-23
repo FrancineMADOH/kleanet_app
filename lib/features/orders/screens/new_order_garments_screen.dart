@@ -51,7 +51,7 @@ class _NewOrderGarmentsScreenState extends State<NewOrderGarmentsScreen> {
               lineCount: draft.lineCount,
               estimatedTotal: draft.estimatedTotal,
               onContinue: draft.hasLines
-                  ? () => context.go(Routes.newOrderPickup)
+                  ? () => context.push(Routes.newOrderPickup)
                   : null,
             ),
           ],

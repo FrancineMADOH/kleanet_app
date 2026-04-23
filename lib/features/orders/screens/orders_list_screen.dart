@@ -25,7 +25,12 @@ import '../models/order_models.dart';
 import '../providers/orders_list_provider.dart';
 
 class OrdersListScreen extends StatefulWidget {
-  const OrdersListScreen({super.key});
+  /// [embedded] : quand true, l'écran est monté à l'intérieur d'un IndexedStack
+  /// (onglet Commandes de HomeScreen) et ne doit PAS rendre son propre Scaffold
+  /// — le Scaffold parent gère déjà l'AppBar et la barre de navigation.
+  const OrdersListScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<OrdersListScreen> createState() => _OrdersListScreenState();
@@ -47,6 +52,19 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<OrdersListProvider>();
+
+    // Mode embarqué (onglet) — pas de Scaffold ni d'AppBar propres.
+    if (widget.embedded) {
+      return Column(
+        children: [
+          _FilterBar(
+            activeFilter: provider.activeFilter,
+            onFilterChanged: context.read<OrdersListProvider>().setFilter,
+          ),
+          Expanded(child: _buildBody(provider)),
+        ],
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

@@ -26,6 +26,7 @@ import 'features/catalog/providers/catalog_provider.dart';
 import 'features/catalog/repositories/catalog_cache.dart';
 import 'features/catalog/repositories/catalog_repository.dart';
 import 'features/orders/providers/order_draft_provider.dart';
+import 'features/orders/providers/orders_list_provider.dart';
 import 'features/orders/repositories/order_repository.dart';
 import 'features/subscription/providers/subscription_provider.dart';
 import 'features/subscription/repositories/subscription_repository.dart';
@@ -94,6 +95,12 @@ Future<void> main() async {
     catalogProvider: catalogProvider,
   );
 
+  // OrdersListProvider au niveau app : nécessaire pour l'onglet Commandes
+  // de HomeScreen (IndexedStack) qui ne peut pas utiliser une factory de route.
+  final ordersListProvider = OrdersListProvider(
+    repository: orderRepository,
+  );
+
   // SubscriptionProvider : vit à l'échelle app pour éviter un ShellRoute
   // qui brise le bouton retour de l'AppBar (nested Navigator).
   // Les 3 écrans /subscription/* partagent cette instance via le context.
@@ -109,6 +116,7 @@ Future<void> main() async {
     catalogProvider: catalogProvider,
     orderDraftProvider: orderDraftProvider,
     orderRepository: orderRepository,
+    ordersListProvider: ordersListProvider,
     subscriptionProvider: subscriptionProvider,
   ));
 }

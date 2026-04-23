@@ -113,7 +113,8 @@ class SubscriptionUsage {
         ordersThisPeriod: (json['orders_this_period'] as num).toInt(),
         weightUsedKg: (json['weight_used_kg'] as num).toDouble(),
         remainingWeightKg: (json['remaining_weight_kg'] as num).toDouble(),
-        remainingPieces: (json['remaining_pieces'] as num).toDouble(),
+        // Champ optionnel : absent si l'API/Odoo n'a pas encore été mis à jour.
+        remainingPieces: (json['remaining_pieces'] as num?)?.toDouble() ?? 0.0,
       );
 }
 

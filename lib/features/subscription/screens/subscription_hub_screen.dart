@@ -19,7 +19,12 @@ import '../models/subscription_models.dart';
 import '../providers/subscription_provider.dart';
 
 class SubscriptionHubScreen extends StatefulWidget {
-  const SubscriptionHubScreen({super.key});
+  /// [embedded] : quand true, l'écran est monté à l'intérieur d'un IndexedStack
+  /// (onglet Abonnement de HomeScreen) et ne doit PAS rendre son propre Scaffold
+  /// — le Scaffold parent gère déjà l'AppBar et la barre de navigation.
+  const SubscriptionHubScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<SubscriptionHubScreen> createState() => _SubscriptionHubScreenState();
@@ -40,6 +45,11 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SubscriptionProvider>();
+
+    // Mode embarqué (onglet) — pas de Scaffold ni d'AppBar propres.
+    if (widget.embedded) {
+      return _buildBody(provider);
+    }
 
     return Scaffold(
       appBar: AppBar(
