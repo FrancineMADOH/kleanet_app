@@ -27,8 +27,6 @@ import '../../features/orders/screens/order_confirmed_screen.dart';
 import '../../features/orders/screens/order_detail_screen.dart';
 import '../../features/orders/screens/orders_list_screen.dart';
 import '../../features/subscription/models/subscription_models.dart';
-import '../../features/subscription/providers/subscription_provider.dart';
-import '../../features/subscription/repositories/subscription_repository.dart';
 import '../../features/subscription/screens/plans_screen.dart';
 import '../../features/subscription/screens/subscribe_confirm_screen.dart';
 import '../../features/subscription/screens/subscription_hub_screen.dart';
@@ -133,36 +131,24 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
           child: const OrdersListScreen(),
         ),
       ),
-      // Hub abonnement — SubscriptionProvider partagé entre les 3 écrans
-      // via un ShellRoute. Les sous-routes /plans et /confirm héritent
-      // du même provider scoped instancié ici.
-      ShellRoute(
-        builder: (context, state, child) => ChangeNotifierProvider(
-          create: (ctx) => SubscriptionProvider(
-            repository: SubscriptionRepository(
-              apiClient: ctx.read(),
-            ),
-          ),
-          child: child,
+      // Abonnement — 3 routes plates qui partagent le SubscriptionProvider
+      // injecté au niveau racine dans app.dart (évite le ShellRoute qui
+      // crée un Navigator imbriqué et casse le bouton retour de l'AppBar).
+      GoRoute(
+        path: Routes.subscription,
+        builder: (_, __) => const SubscriptionHubScreen(),
+      ),
+      GoRoute(
+        path: Routes.subscriptionPlans,
+        builder: (_, __) => const PlansScreen(),
+      ),
+      GoRoute(
+        path: Routes.subscribeConfirm,
+        redirect: (_, state) =>
+            state.extra is SubscriptionPlan ? null : Routes.subscription,
+        builder: (_, state) => SubscribeConfirmScreen(
+          plan: state.extra as SubscriptionPlan,
         ),
-        routes: [
-          GoRoute(
-            path: Routes.subscription,
-            builder: (_, __) => const SubscriptionHubScreen(),
-          ),
-          GoRoute(
-            path: Routes.subscriptionPlans,
-            builder: (_, __) => const PlansScreen(),
-          ),
-          GoRoute(
-            path: Routes.subscribeConfirm,
-            redirect: (_, state) =>
-                state.extra is SubscriptionPlan ? null : Routes.subscription,
-            builder: (_, state) => SubscribeConfirmScreen(
-              plan: state.extra as SubscriptionPlan,
-            ),
-          ),
-        ],
       ),
       // Flux Nouvelle commande — déclaré en routes "plates" (pas de
       // sous-routes imbriquées) pour que chaque écran puisse utiliser

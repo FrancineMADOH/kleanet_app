@@ -1,11 +1,11 @@
 // Écran pivot abonnement (Écrans 16 / 16-B du plan).
 //
-// Deux affichages possibles selon l'état du provider :
-//   - Sans abonnement actif → page de vente avec bouton "Voir les plans".
-//   - Avec abonnement actif → dashboard avec barres de progression.
-//
-// Le provider est scoped à la route /subscription — instancié dans le
-// builder GoRouter, disposé automatiquement à la sortie.
+// Trois affichages possibles selon l'état du provider :
+//   - Sans abonnement (subscription == null) → page de vente.
+//   - Abonnement expiré/annulé/en pause (subscription != null && !isSubscribed)
+//     → écran de renouvellement avec contexte du plan précédent.
+//   - Abonnement actif → dashboard avec badge statut + barres de progression
+//     + bouton "Planifier un pickup".
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -55,18 +55,28 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
     if (provider.isLoadingSubscription) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (provider.subscriptionError != null && !provider.isSubscribed) {
+    if (provider.subscriptionError != null && provider.subscription == null) {
       return ErrorState(
         message: provider.subscriptionError!,
         onRetry: _refresh,
       );
     }
 
+    final sub = provider.subscription;
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: provider.isSubscribed
-          ? _Dashboard(subscription: provider.subscription!)
-          : const _SalesPage(),
+      child: switch (sub?.state) {
+        // Abonnement actif → dashboard.
+        SubscriptionState.active => _Dashboard(subscription: sub!),
+        // En attente de validation admin → écran d'attente.
+        SubscriptionState.pending => _PendingPage(subscription: sub!),
+        // Expiré / annulé / en pause → renouvellement.
+        SubscriptionState.paused ||
+        SubscriptionState.cancelled =>
+          _RenewalPage(subscription: sub!),
+        // Jamais eu d'abonnement → page de vente.
+        null => const _SalesPage(),
+      },
     );
   }
 }
@@ -234,6 +244,26 @@ class _Dashboard extends StatelessWidget {
         const SizedBox(height: 16),
         // Note overage.
         _OverageNote(price: subscription.overagePricePerKg),
+        const SizedBox(height: 24),
+        // Bouton pickup — démarre le flux commande qui enchaîne
+        // création + planification pickup (étapes 1 → 2 → 3).
+        ElevatedButton.icon(
+          onPressed: () => context.push(Routes.newOrder),
+          icon: const Icon(Icons.directions_bike),
+          label: const Text(
+            'Planifier un pickup',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -269,14 +299,17 @@ class _PlanHeaderCard extends StatelessWidget {
             children: [
               const Icon(Icons.workspace_premium, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(
-                subscription.planName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  subscription.planName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
+              _StateBadge(state: subscription.state),
             ],
           ),
           const SizedBox(height: 8),
@@ -429,6 +462,326 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
+// ----------------------------------------------------------------
+// Badge statut (actif / en pause / annulé)
+// ----------------------------------------------------------------
+
+/// Pill coloré affiché dans la carte header pour indiquer clairement
+/// si l'abonnement est en cours, suspendu ou terminé.
+class _StateBadge extends StatelessWidget {
+  const _StateBadge({required this.state});
+  final SubscriptionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, bg, fg) = switch (state) {
+      SubscriptionState.pending => (
+          'En attente',
+          AppColors.warning,
+          Colors.white,
+        ),
+      SubscriptionState.active => (
+          'Actif',
+          AppColors.success,
+          Colors.white,
+        ),
+      SubscriptionState.paused => (
+          'En pause',
+          AppColors.warning,
+          Colors.white,
+        ),
+      SubscriptionState.cancelled => (
+          'Annulé',
+          AppColors.error,
+          Colors.white,
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// Page d'attente (abonnement pending — paiement non encore validé)
+// ----------------------------------------------------------------
+
+/// Affiché quand le client vient de souscrire mais que l'admin n'a pas
+/// encore confirmé la réception du paiement dans Odoo.
+class _PendingPage extends StatelessWidget {
+  const _PendingPage({required this.subscription});
+  final ActiveSubscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              size: 56,
+              color: AppColors.warning,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Abonnement en attente de validation',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Votre demande pour le plan "${subscription.planName}" a bien été reçue. '
+          'Notre équipe va confirmer votre paiement et activer votre abonnement '
+          'dans les plus brefs délais.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 32),
+        // Rappel du plan souscrit.
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              _PendingRow(
+                icon: Icons.workspace_premium,
+                label: 'Plan choisi',
+                value: subscription.planName,
+              ),
+              const Divider(height: 16, color: AppColors.border),
+              _PendingRow(
+                icon: Icons.payments_outlined,
+                label: 'Montant',
+                value:
+                    '${CurrencyUtils.formatXAF(subscription.recurringFee)} ${subscription.billingCycle.label}',
+              ),
+              const Divider(height: 16, color: AppColors.border),
+              _PendingRow(
+                icon: Icons.tag,
+                label: 'Référence',
+                value: subscription.reference,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        // Note informative.
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: AppColors.primary),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Vous recevrez une confirmation dès que le paiement sera validé. '
+                  'Tirez vers le bas pour rafraîchir.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PendingRow extends StatelessWidget {
+  const _PendingRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// Page de renouvellement (abonnement expiré / annulé / en pause)
+// ----------------------------------------------------------------
+
+/// Affiché quand le client a déjà eu un abonnement mais qu'il n'est
+/// plus actif — lui propose de reprendre avec son ancien plan en tête.
+class _RenewalPage extends StatelessWidget {
+  const _RenewalPage({required this.subscription});
+  final ActiveSubscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final stateLabel = switch (subscription.state) {
+      SubscriptionState.paused => 'suspendu',
+      SubscriptionState.cancelled => 'expiré',
+      SubscriptionState.active || SubscriptionState.pending => '',
+    };
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.workspace_premium_outlined,
+              size: 56,
+              color: AppColors.warning,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Votre abonnement est $stateLabel',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Votre plan "${subscription.planName}" n\'est plus actif. '
+          'Renouvelez ou choisissez un nouveau plan pour continuer '
+          'à profiter de vos avantages.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 32),
+        // Rappel de l'ancien plan.
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.history, color: AppColors.textSecondary, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Ancien plan : ${subscription.planName}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              Text(
+                CurrencyUtils.formatXAF(subscription.recurringFee),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        ElevatedButton(
+          onPressed: () => context.push(Routes.subscriptionPlans),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'Renouveler mon abonnement',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ----------------------------------------------------------------
 class _OverageNote extends StatelessWidget {
   const _OverageNote({required this.price});
   final double price;

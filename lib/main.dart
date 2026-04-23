@@ -27,6 +27,8 @@ import 'features/catalog/repositories/catalog_cache.dart';
 import 'features/catalog/repositories/catalog_repository.dart';
 import 'features/orders/providers/order_draft_provider.dart';
 import 'features/orders/repositories/order_repository.dart';
+import 'features/subscription/providers/subscription_provider.dart';
+import 'features/subscription/repositories/subscription_repository.dart';
 
 /// Entrée de l'app. Tout démarre ici — ne pas ajouter de logique métier
 /// dans ce fichier, seulement du câblage d'initialisation.
@@ -92,6 +94,14 @@ Future<void> main() async {
     catalogProvider: catalogProvider,
   );
 
+  // SubscriptionProvider : vit à l'échelle app pour éviter un ShellRoute
+  // qui brise le bouton retour de l'AppBar (nested Navigator).
+  // Les 3 écrans /subscription/* partagent cette instance via le context.
+  final subscriptionRepository = SubscriptionRepository(apiClient: apiClient);
+  final subscriptionProvider = SubscriptionProvider(
+    repository: subscriptionRepository,
+  );
+
   runApp(KleanetApp(
     tokenStorage: tokenStorage,
     authProvider: authProvider,
@@ -99,5 +109,6 @@ Future<void> main() async {
     catalogProvider: catalogProvider,
     orderDraftProvider: orderDraftProvider,
     orderRepository: orderRepository,
+    subscriptionProvider: subscriptionProvider,
   ));
 }

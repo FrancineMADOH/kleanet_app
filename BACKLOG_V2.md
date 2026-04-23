@@ -32,6 +32,23 @@
 |---|---------------|---------|-----------|
 | S-01 | **SUBSCRIPTION-01 complet** (hub + comparaison de plans + souscription) | Étape non démarrée | À créer entièrement — `features/subscription/` |
 | S-02 | **Annulation / suspension d'abonnement** | Non couvert par SUBSCRIPTION-01 | À définir avec l'API |
+| S-03 | **Tarification abonnement sur les commandes** (voir détail ci-dessous) | Diagnostic 2026-04-23 — décision architecturale reportée | `laundry_order_line.py`, `laundry.pricing.rule` |
+
+### S-03 — Détail : tarification abonnement sur les commandes
+
+**Constat** : le champ `subscription_id` sur `laundry.order` est aujourd'hui un lien de tracking pur. Il sert à agréger les commandes pour calculer `period_weight_kg` / `remaining_weight_kg`, mais n'influence jamais le prix.  
+`laundry_order_line._get_applicable_pricing_rule()` cherche uniquement sur `garment_type + material + mode` — un abonné paye exactement le même tarif unitaire qu'un client sans abonnement.
+
+**Décision architecturale à prendre en V2** — deux options :
+
+| Option | Description | Impact |
+|--------|-------------|--------|
+| **A — Flat fee + overage** | Commandes dans le quota inclus → montant = 0 XAF. Au-delà du quota → facturation à `overage_price_per_kg`. Modifier `_compute_prices` pour détecter `order_id.subscription_id` actif et comparer poids cumulé au quota. | Moyen — logique dans `laundry_order_line.py` + recalcul à chaque commande |
+| **B — Pricing rules abonnement** | Ajouter un champ `subscription_plan_id` sur `laundry.pricing.rule` pour avoir des tarifs réduits dédiés aux abonnés. La cascade de recherche inclut ce filtre. | Plus élevé — nouveau champ + migration + UI admin |
+
+**Recommandation** : Option A, cohérente avec le modèle "flat fee mensuel + overage" documenté dans `PAIEMENT_INTEGRATION.md`.
+
+**Fichiers concernés** : `bw_kleanet/models/laundry_order_line.py` (méthode `_compute_prices` + `_get_applicable_pricing_rule`), potentiellement `laundry_subscription.py` pour exposer le quota restant en temps réel.
 
 ---
 

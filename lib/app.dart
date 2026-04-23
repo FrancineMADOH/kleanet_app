@@ -19,6 +19,7 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/providers/catalog_provider.dart';
 import 'features/orders/providers/order_draft_provider.dart';
 import 'features/orders/repositories/order_repository.dart';
+import 'features/subscription/providers/subscription_provider.dart';
 import 'shared/theme/app_theme.dart';
 
 /// Widget racine. Reçoit les singletons déjà construits depuis main.dart
@@ -33,6 +34,7 @@ class KleanetApp extends StatefulWidget {
     required this.catalogProvider,
     required this.orderDraftProvider,
     required this.orderRepository,
+    required this.subscriptionProvider,
   });
 
   final TokenStorage tokenStorage;
@@ -41,6 +43,7 @@ class KleanetApp extends StatefulWidget {
   final CatalogProvider catalogProvider;
   final OrderDraftProvider orderDraftProvider;
   final OrderRepository orderRepository;
+  final SubscriptionProvider subscriptionProvider;
 
   @override
   State<KleanetApp> createState() => _KleanetAppState();
@@ -62,6 +65,9 @@ class _KleanetAppState extends State<KleanetApp> {
         ),
         ChangeNotifierProvider<OrderDraftProvider>.value(
           value: widget.orderDraftProvider,
+        ),
+        ChangeNotifierProvider<SubscriptionProvider>.value(
+          value: widget.subscriptionProvider,
         ),
       ],
       child: MaterialApp.router(

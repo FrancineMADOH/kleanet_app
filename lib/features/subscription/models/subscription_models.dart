@@ -25,17 +25,20 @@ enum BillingCycle {
       };
 }
 
-/// Statut d'un abonnement actif.
+/// Statut d'un abonnement — aligné sur l'enum Odoo `laundry.subscription.state`.
+/// `pending` = souscription reçue, en attente de validation du paiement par l'admin.
 enum SubscriptionState {
+  pending,
   active,
   paused,
   cancelled;
 
   static SubscriptionState fromJson(String raw) => switch (raw) {
-        'active' => SubscriptionState.active,
-        'paused' => SubscriptionState.paused,
+        'pending'   => SubscriptionState.pending,
+        'active'    => SubscriptionState.active,
+        'paused'    => SubscriptionState.paused,
         'cancelled' => SubscriptionState.cancelled,
-        _ => SubscriptionState.active,
+        _           => SubscriptionState.pending,
       };
 }
 
