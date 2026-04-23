@@ -1,12 +1,14 @@
 // Repository Orders — thin wrapper Dio autour de /orders et /appointments.
 //
-// Deux méthodes :
+// Trois méthodes lectures + une mutation + un rendez-vous :
+//   - listOrders({filter})           → GET /orders?status=&limit=50
 //   - createOrder(request)           → POST /orders
+//   - getOrderById(id)               → GET /orders/{id}
 //   - schedulePickup(orderId, when)  → POST /appointments (type=pickup)
 //
-// Pourquoi deux appels ? Le backend sépare "commande" et "rendez-vous
-// pickup" — l'API /orders ne prend PAS de date de collecte. On enchaîne
-// les deux depuis le provider pour donner un flux utilisateur unique.
+// Pourquoi deux appels (createOrder + schedulePickup) ? Le backend sépare
+// "commande" et "rendez-vous pickup" — l'API /orders ne prend PAS de date
+// de collecte. On enchaîne les deux depuis le provider.
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -17,6 +19,23 @@ class OrderRepository {
   OrderRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   final ApiClient _apiClient;
+
+  /// Récupère la liste des commandes du partenaire authentifié.
+  /// [filter] : si fourni, filtre sur un statut précis (query param `status`).
+  /// On demande 50 résultats max — suffisant pour V1 sans pagination scroll.
+  Future<List<Order>> listOrders({OrderStatus? filter}) async {
+    final response = await _apiClient.get<List<dynamic>>(
+      ApiEndpoints.orders,
+      queryParameters: {
+        'limit': 50,
+        if (filter != null) 'status': filter.apiValue,
+      },
+    );
+    final raw = response.data ?? [];
+    return raw
+        .map((e) => Order.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   /// Crée une nouvelle commande. Le prix total n'est PAS à envoyer —
   /// Odoo le recalcule server-side depuis les pricing rules.

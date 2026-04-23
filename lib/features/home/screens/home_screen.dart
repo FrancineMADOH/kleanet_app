@@ -110,20 +110,70 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // 3. Cas nominal — liste des types de vêtements avec leur prix.
+    // 3. Cas nominal — raccourci "Mes commandes" + liste des types de vêtements.
     final types = catalog.garmentTypes;
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: types.length + 1,
+      itemCount: types.length + 2, // +1 header catalogue, +1 tuile commandes
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        if (index == 0) return _HeaderCard(fetchedAt: catalog.fetchedAt);
-        final type = types[index - 1];
+        if (index == 0) return const _MyOrdersTile();
+        if (index == 1) return _HeaderCard(fetchedAt: catalog.fetchedAt);
+        final type = types[index - 2];
         return _GarmentCard(
           type: type,
           priceLabel: catalog.formattedPriceFor(type),
         );
       },
+    );
+  }
+}
+
+/// Tuile d'accès rapide à la liste des commandes — placée en tête du home
+/// pour que l'utilisateur puisse consulter ses commandes sans chercher.
+class _MyOrdersTile extends StatelessWidget {
+  const _MyOrdersTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(Routes.orders),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.receipt_long, color: Colors.white, size: 24),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mes commandes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'Suivre mes commandes en cours',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
     );
   }
 }

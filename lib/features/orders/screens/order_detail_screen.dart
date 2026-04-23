@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../models/order_models.dart';
 import '../providers/order_detail_provider.dart';
 import 'widgets/order_status_timeline.dart';
@@ -126,59 +127,11 @@ class _HeaderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _StatusBadge(status: order.status),
+          StatusBadge(status: order.status),
         ],
       ),
     );
   }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final OrderStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg) = _palette(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status.label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
-      ),
-    );
-  }
-
-  (Color, Color) _palette(OrderStatus s) => switch (s) {
-        OrderStatus.pending => (
-            AppColors.warning.withValues(alpha: 0.15),
-            AppColors.warning,
-          ),
-        OrderStatus.received => (
-            AppColors.primary.withValues(alpha: 0.1),
-            AppColors.primary,
-          ),
-        OrderStatus.readyForPickup => (
-            AppColors.accent1.withValues(alpha: 0.15),
-            AppColors.accent1,
-          ),
-        OrderStatus.delivered => (
-            AppColors.success.withValues(alpha: 0.15),
-            AppColors.success,
-          ),
-        OrderStatus.cancelled => (
-            AppColors.error.withValues(alpha: 0.1),
-            AppColors.error,
-          ),
-      };
 }
 
 class _SectionTitle extends StatelessWidget {

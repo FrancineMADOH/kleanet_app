@@ -50,6 +50,16 @@ enum OrderStatus {
         OrderStatus.cancelled => 'Annulée',
       };
 
+  /// Valeur brute envoyée comme query param à l'API (ex: ?status=ready_for_pickup).
+  /// Symétrique de [fromJson] — doit rester aligné sur les deux.
+  String get apiValue => switch (this) {
+        OrderStatus.pending => 'pending',
+        OrderStatus.received => 'received',
+        OrderStatus.readyForPickup => 'ready_for_pickup',
+        OrderStatus.delivered => 'delivered',
+        OrderStatus.cancelled => 'cancelled',
+      };
+
   /// Libellé long — pour la timeline verticale du détail commande.
   /// Décrit explicitement la phase vécue par le client :
   ///   - pending         : commande créée, on attend le passage du livreur

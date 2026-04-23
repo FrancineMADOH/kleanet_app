@@ -10,6 +10,8 @@
 // phone, otp) partagent exactement le même état — les splitter forcerait
 // à passer le numéro en paramètre de route ou à dupliquer la logique.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -75,7 +77,8 @@ class AuthProvider extends ChangeNotifier {
   OtpFlowStatus get otpStatus => _otpStatus;
   String? get pendingPhone => _pendingPhone;
   String? get errorMessage => _errorMessage;
-  int get attemptsRemaining => maxAttempts - _attemptsUsed;
+  int get attemptsRemaining =>
+      (maxAttempts - _attemptsUsed).clamp(0, maxAttempts);
   DateTime? get lockedUntil => _lockedUntil;
 
   /// Lit le token et, si présent, confirme la session via /profile.
@@ -263,11 +266,21 @@ class AuthProvider extends ChangeNotifier {
     final lock = _lockedUntil;
     if (lock == null) return false;
     if (lock.isBefore(DateTime.now())) {
+      // Le lockout vient d'expirer : on nettoie la mémoire ET le disque,
+      // sinon une lecture de SharedPreferences entre maintenant et le
+      // prochain cold start verrait encore le vieux timestamp.
       _lockedUntil = null;
       _attemptsUsed = 0;
+      unawaited(_clearLockPersistently());
       return false;
     }
     return true;
+  }
+
+  Future<void> _clearLockPersistently() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kAttemptsKey);
+    await prefs.remove(_kLockUntilKey);
   }
 
   String _formatLockEnd() {
