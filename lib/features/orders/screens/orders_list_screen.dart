@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../models/order_models.dart';
 import '../providers/orders_list_provider.dart';
@@ -74,7 +75,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
 
     // Erreur sans aucune données → empty state avec retry.
     if (provider.errorMessage != null && provider.orders.isEmpty) {
-      return _ErrorState(
+      return ErrorState(
         message: provider.errorMessage!,
         onRetry: _refresh,
       );
@@ -307,38 +308,3 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.cloud_off,
-              size: 56,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Réessayer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

@@ -114,12 +114,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final types = catalog.garmentTypes;
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: types.length + 2, // +1 header catalogue, +1 tuile commandes
+      itemCount: types.length + 3, // +1 tuile commandes, +1 tuile abonnement, +1 header catalogue
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (index == 0) return const _MyOrdersTile();
-        if (index == 1) return _HeaderCard(fetchedAt: catalog.fetchedAt);
-        final type = types[index - 2];
+        if (index == 1) return const _SubscriptionTile();
+        if (index == 2) return _HeaderCard(fetchedAt: catalog.fetchedAt);
+        final type = types[index - 3];
         return _GarmentCard(
           type: type,
           priceLabel: catalog.formattedPriceFor(type),
@@ -166,6 +167,51 @@ class _MyOrdersTile extends StatelessWidget {
                       fontSize: 12,
                       color: Colors.white70,
                     ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tuile d'accès à l'abonnement — icône premium sur fond cyan.
+class _SubscriptionTile extends StatelessWidget {
+  const _SubscriptionTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(Routes.subscription),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.accent1,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.workspace_premium, color: Colors.white, size: 24),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mon abonnement',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'Voir mes avantages et ma consommation',
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
                   ),
                 ],
               ),

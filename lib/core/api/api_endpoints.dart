@@ -46,8 +46,10 @@ class ApiEndpoints {
   static const appointments = '$apiPrefix/appointments/';
 
   // --- Abonnements ---
-  static const subscriptionPlans = '$apiPrefix/subscription/plans';
-  static const subscriptionMine = '$apiPrefix/subscription/mine';
+  // GET /catalog/plans         → liste des plans disponibles (public)
+  // GET /subscription/         → abonnement actif du user (null si aucun)
+  // POST /subscription/        → souscrire à un plan (body: {plan_id})
+  static const subscription = '$apiPrefix/subscription/';
 
   // --- FAQ ---
   static const faqCategories = '$apiPrefix/faq/categories';
