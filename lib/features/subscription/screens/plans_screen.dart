@@ -3,13 +3,19 @@
 // Charge la liste des plans via SubscriptionProvider.loadPlans() au montage.
 // Chaque plan est affiché sous forme de carte avec ses caractéristiques.
 // Les plans recommandés remontent en tête (tri fait dans le provider).
-// "Choisir" → navigue vers SubscribeConfirmScreen avec le plan en `extra`.
+// "Choisir" → appelle onPlanSelected (mode embarqué) ou GoRouter (mode route).
+//
+// Callbacks :
+//   onPlanSelected(plan) — le parent passe au sous-état confirm avec le plan choisi.
+//   onBack             — le parent revient au hub sans GoRouter pop.
+//
+// Guard : si un abonnement existe déjà (pending/active/paused/cancelled),
+// on redirige immédiatement vers le hub via onBack pour empêcher une double
+// souscription (la vérification définitive reste côté API avec 409).
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
 import '../../../shared/widgets/error_state.dart';
@@ -17,7 +23,19 @@ import '../models/subscription_models.dart';
 import '../providers/subscription_provider.dart';
 
 class PlansScreen extends StatefulWidget {
-  const PlansScreen({super.key});
+  const PlansScreen({
+    super.key,
+    this.onPlanSelected,
+    this.onBack,
+  });
+
+  /// Appelé quand l'utilisateur clique "Choisir ce plan" — le plan est transmis
+  /// au parent (HomeScreen) qui gère la transition vers SubscribeConfirmScreen.
+  final void Function(SubscriptionPlan plan)? onPlanSelected;
+
+  /// Appelé quand l'utilisateur appuie sur le bouton retour de l'AppBar.
+  /// Fourni uniquement en mode embarqué (l'onglet Abonnement de HomeScreen).
+  final VoidCallback? onBack;
 
   @override
   State<PlansScreen> createState() => _PlansScreenState();
@@ -28,7 +46,14 @@ class _PlansScreenState extends State<PlansScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubscriptionProvider>().loadPlans();
+      // Guard : si l'utilisateur a déjà un abonnement (pending inclus),
+      // le renvoyer immédiatement au hub — on ne doit pas afficher les plans.
+      final provider = context.read<SubscriptionProvider>();
+      if (provider.subscription != null) {
+        widget.onBack?.call();
+        return;
+      }
+      provider.loadPlans();
     });
   }
 
@@ -41,6 +66,14 @@ class _PlansScreenState extends State<PlansScreen> {
         title: const Text('Choisir un plan'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        // Bouton retour manuel fourni par le parent en mode embarqué.
+        leading: widget.onBack != null
+            ? BackButton(
+                onPressed: widget.onBack,
+                color: Colors.white,
+              )
+            : null,
+        automaticallyImplyLeading: widget.onBack == null,
       ),
       body: _buildBody(provider),
     );
@@ -70,7 +103,10 @@ class _PlansScreenState extends State<PlansScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: provider.plans.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => _PlanCard(plan: provider.plans[i]),
+      itemBuilder: (_, i) => _PlanCard(
+        plan: provider.plans[i],
+        onPlanSelected: widget.onPlanSelected,
+      ),
     );
   }
 }
@@ -80,8 +116,10 @@ class _PlansScreenState extends State<PlansScreen> {
 // ----------------------------------------------------------------
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.plan});
+  const _PlanCard({required this.plan, this.onPlanSelected});
   final SubscriptionPlan plan;
+  // Callback transmis par PlansScreen pour déclencher la transition vers confirm.
+  final void Function(SubscriptionPlan plan)? onPlanSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -210,12 +248,14 @@ class _PlanCard extends StatelessWidget {
                   muted: true,
                 ),
                 const SizedBox(height: 16),
-                // Bouton choisir → écran de confirmation.
+                // Bouton choisir → transition vers SubscribeConfirmScreen via callback.
+                // onPlanSelected fourni par PlansScreen (transmis depuis HomeScreen).
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () =>
-                        context.push(Routes.subscribeConfirm, extra: plan),
+                    onPressed: onPlanSelected != null
+                        ? () => onPlanSelected!(plan)
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: plan.isRecommended
                           ? AppColors.primary

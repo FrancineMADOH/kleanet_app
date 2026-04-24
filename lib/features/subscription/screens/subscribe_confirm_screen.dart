@@ -1,12 +1,14 @@
 // Écran de confirmation de souscription (Écran 18 du plan).
 //
-// Reçoit un [SubscriptionPlan] via GoRouter `extra`. Si quelqu'un navigue
-// directement ici sans `extra`, le redirect de la route renvoie sur /subscription.
+// Reçoit un [SubscriptionPlan] soit via le callback [onSuccess] / [onBack]
+// (mode embarqué dans l'onglet Abonnement), soit via GoRouter `extra` (route
+// autonome). Si quelqu'un navigue directement ici sans `extra`, le redirect
+// de la route renvoie sur /subscription.
 //
 // Comportement :
 //   - Affiche le récapitulatif du plan choisi (prix, kg, pièces, pickups).
 //   - "Confirmer" → appelle SubscriptionProvider.subscribe(planId).
-//   - Succès → navigation vers /subscription (le hub affiche _PendingPage).
+//   - Succès → appelle onSuccess (mode onglet) ou context.go(Routes.subscription).
 //   - Erreur (ex: 409 ALREADY_SUBSCRIBED) → SnackBar d'erreur, reste sur l'écran.
 //
 // UX améliorée (StatefulWidget) :
@@ -15,6 +17,9 @@
 //     réponse réseau → l'utilisateur reçoit un feedback dans la même frame.
 //   - En cas d'erreur API, _submitted repasse à false : le bouton réapparaît
 //     pour permettre une nouvelle tentative, et un SnackBar décrit l'erreur.
+//
+// Guard : si un abonnement existe déjà au montage, redirige vers le hub via
+// onBack pour éviter une double souscription.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,9 +33,22 @@ import '../providers/subscription_provider.dart';
 import 'subscription_hub_screen.dart' show SubscriptionSectionLabel;
 
 class SubscribeConfirmScreen extends StatefulWidget {
-  const SubscribeConfirmScreen({super.key, required this.plan});
+  const SubscribeConfirmScreen({
+    super.key,
+    required this.plan,
+    this.onSuccess,
+    this.onBack,
+  });
 
   final SubscriptionPlan plan;
+
+  /// Appelé après une souscription réussie — le parent revient au hub qui
+  /// affiche alors _PendingPage. Fallback GoRouter si null.
+  final VoidCallback? onSuccess;
+
+  /// Appelé quand l'utilisateur appuie sur le bouton retour de l'AppBar.
+  /// Fourni uniquement en mode embarqué (l'onglet Abonnement de HomeScreen).
+  final VoidCallback? onBack;
 
   @override
   State<SubscribeConfirmScreen> createState() => _SubscribeConfirmScreenState();
@@ -41,6 +59,20 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
   // immédiatement dans la même frame et est remplacé par le message inline.
   // Repasse à false uniquement si l'appel API échoue, pour réafficher le bouton.
   bool _submitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Guard : si un abonnement existe déjà (pending inclus), on ne peut pas
+    // souscrire à nouveau — renvoyer immédiatement au hub.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<SubscriptionProvider>();
+      if (provider.subscription != null) {
+        widget.onBack?.call();
+      }
+    });
+  }
 
   Future<void> _confirm() async {
     // 1. Masquer le bouton immédiatement — feedback instantané pour l'utilisateur.
@@ -54,8 +86,12 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
     if (!mounted) return;
 
     if (success) {
-      // 3. Succès → retour au hub qui affiche maintenant _PendingPage.
-      context.go(Routes.subscription);
+      // 3. Succès → retour au hub (callback inline prioritaire, GoRouter en fallback).
+      if (widget.onSuccess != null) {
+        widget.onSuccess!();
+      } else {
+        context.go(Routes.subscription);
+      }
     } else {
       // 4. Erreur → réafficher le bouton + SnackBar descriptif.
       setState(() => _submitted = false);
@@ -79,6 +115,14 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
         title: const Text('Confirmer l\'abonnement'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        // Bouton retour manuel fourni par le parent en mode embarqué.
+        leading: widget.onBack != null
+            ? BackButton(
+                onPressed: widget.onBack,
+                color: Colors.white,
+              )
+            : null,
+        automaticallyImplyLeading: widget.onBack == null,
       ),
       body: Column(
         children: [
