@@ -22,9 +22,18 @@ class SubscriptionHubScreen extends StatefulWidget {
   /// [embedded] : quand true, l'écran est monté à l'intérieur d'un IndexedStack
   /// (onglet Abonnement de HomeScreen) et ne doit PAS rendre son propre Scaffold
   /// — le Scaffold parent gère déjà l'AppBar et la barre de navigation.
-  const SubscriptionHubScreen({super.key, this.embedded = false});
+  ///
+  /// [onShowPlans] : callback déclenché quand l'utilisateur tape "Voir les plans"
+  /// ou "Renouveler". En mode embarqué le parent gère la transition ; en mode
+  /// route autonome la navigation GoRouter est utilisée en secours.
+  const SubscriptionHubScreen({
+    super.key,
+    this.embedded = false,
+    this.onShowPlans,
+  });
 
   final bool embedded;
+  final VoidCallback? onShowPlans;
 
   @override
   State<SubscriptionHubScreen> createState() => _SubscriptionHubScreenState();
@@ -35,7 +44,13 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubscriptionProvider>().loadSubscription();
+      // Ne recharge que si aucune souscription n'est en cache — évite
+      // d'écraser un état pending valide lors d'un remontage causé par un
+      // changement d'onglet. Le provider est déjà peuplé → pas de round-trip.
+      final provider = context.read<SubscriptionProvider>();
+      if (provider.subscription == null) {
+        provider.loadSubscription();
+      }
     });
   }
 
@@ -79,13 +94,17 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
         // Abonnement actif → dashboard.
         SubscriptionState.active => _Dashboard(subscription: sub!),
         // En attente de validation admin → écran d'attente.
+        // Priorité absolue : bloque toute tentative de nouvelle souscription.
         SubscriptionState.pending => _PendingPage(subscription: sub!),
-        // Expiré / annulé / en pause → renouvellement.
+        // Expiré / annulé / en pause → page de renouvellement.
         SubscriptionState.paused ||
         SubscriptionState.cancelled =>
-          _RenewalPage(subscription: sub!),
+          _RenewalPage(
+            subscription: sub!,
+            onShowPlans: widget.onShowPlans,
+          ),
         // Jamais eu d'abonnement → page de vente.
-        null => const _SalesPage(),
+        null => _SalesPage(onShowPlans: widget.onShowPlans),
       },
     );
   }
@@ -96,7 +115,11 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
 // ----------------------------------------------------------------
 
 class _SalesPage extends StatelessWidget {
-  const _SalesPage();
+  const _SalesPage({this.onShowPlans});
+
+  // Callback fourni par le parent pour passer à l'écran des plans sans
+  // quitter l'onglet (la BottomNavigationBar reste visible).
+  final VoidCallback? onShowPlans;
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +166,10 @@ class _SalesPage extends StatelessWidget {
         ..._benefits.map((b) => _BenefitRow(icon: b.$1, label: b.$2)),
         const SizedBox(height: 40),
         ElevatedButton(
-          onPressed: () => context.push(Routes.subscriptionPlans),
+          // onShowPlans fourni par HomeScreen en mode onglet (cas nominal).
+          // En mode route autonome /subscription le bouton est sans effet —
+          // les sous-routes plans/confirm n'existent plus dans GoRouter.
+          onPressed: onShowPlans,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -223,6 +249,12 @@ class _Dashboard extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Avertissement si la date de fin est dépassée mais l'état n'a pas encore
+        // été mis à jour par le cron Odoo (filet de sécurité côté client).
+        if (_isExpired(subscription.endDate)) ...[
+          _ExpiryWarningBanner(endDate: subscription.endDate!),
+          const SizedBox(height: 12),
+        ],
         // Carte header : nom du plan + référence + date de fin.
         _PlanHeaderCard(subscription: subscription),
         const SizedBox(height: 16),
@@ -296,6 +328,16 @@ class _Dashboard extends StatelessWidget {
     if (ratio < 0.7) return AppColors.success;
     if (ratio < 0.9) return AppColors.warning;
     return AppColors.error;
+  }
+
+  /// Retourne true si [endDate] est une date valide et qu'elle est dans le passé.
+  /// Filet de sécurité : le cron Odoo peut mettre plusieurs minutes à passer
+  /// l'abonnement en "cancelled" après l'expiration réelle.
+  static bool _isExpired(String? endDate) {
+    if (endDate == null) return false;
+    final parsed = DateTime.tryParse(endDate);
+    if (parsed == null) return false;
+    return parsed.isBefore(DateTime.now());
   }
 }
 
@@ -699,8 +741,10 @@ class _PendingRow extends StatelessWidget {
 /// Affiché quand le client a déjà eu un abonnement mais qu'il n'est
 /// plus actif — lui propose de reprendre avec son ancien plan en tête.
 class _RenewalPage extends StatelessWidget {
-  const _RenewalPage({required this.subscription});
+  const _RenewalPage({required this.subscription, this.onShowPlans});
   final ActiveSubscription subscription;
+  // Callback pour passer aux plans sans quitter l'onglet (identique à _SalesPage).
+  final VoidCallback? onShowPlans;
 
   @override
   Widget build(BuildContext context) {
@@ -785,7 +829,8 @@ class _RenewalPage extends StatelessWidget {
         ),
         const SizedBox(height: 32),
         ElevatedButton(
-          onPressed: () => context.push(Routes.subscriptionPlans),
+          // Même logique que _SalesPage : callback inline fourni par HomeScreen.
+          onPressed: onShowPlans,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -831,6 +876,46 @@ class _OverageNote extends StatelessWidget {
                 fontSize: 12,
                 color: AppColors.warning,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// Bannière d'avertissement expiration (filet de sécurité côté client)
+// ----------------------------------------------------------------
+
+/// Affiché en haut du dashboard quand [endDate] est dans le passé mais que
+/// l'état Odoo est encore "active" (le cron n'a pas encore tourné).
+class _ExpiryWarningBanner extends StatelessWidget {
+  const _ExpiryWarningBanner({required this.endDate});
+  final String endDate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Votre abonnement a expiré le $endDate. Renouvelez pour continuer à bénéficier de vos avantages.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
               ),
             ),
           ),
