@@ -8,10 +8,16 @@
 // Structure des onglets :
 //   0 — Accueil     : catalogue de vêtements (pull-to-refresh)
 //   1 — Commandes   : OrdersListScreen (filtre + liste)
-//   2 — Abonnement  : SubscriptionHubScreen (dashboard / page de vente)
+//   2 — Abonnement  : hub + plans + confirmation (sous-navigation inline)
 //   3 — Profil      : placeholder "Bientôt disponible"
 //
 // FAB "Nouvelle commande" visible uniquement sur l'onglet Accueil (index 0).
+//
+// Sous-navigation de l'onglet Abonnement :
+//   _SubTab.hub     → SubscriptionHubScreen (page de vente / dashboard)
+//   _SubTab.plans   → PlansScreen (comparaison des plans)
+//   _SubTab.confirm → SubscribeConfirmScreen (récapitulatif + CTA)
+// La BottomNavigationBar reste visible sur les 3 sous-états.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -23,7 +29,13 @@ import '../../auth/providers/auth_provider.dart';
 import '../../catalog/models/catalog_models.dart';
 import '../../catalog/providers/catalog_provider.dart';
 import '../../orders/screens/orders_list_screen.dart';
+import '../../subscription/models/subscription_models.dart';
+import '../../subscription/screens/subscribe_confirm_screen.dart';
+import '../../subscription/screens/plans_screen.dart';
 import '../../subscription/screens/subscription_hub_screen.dart';
+
+// Sous-états de l'onglet Abonnement — hub (défaut), liste des plans, confirmation.
+enum _SubTab { hub, plans, confirm }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,6 +47,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // Onglet courant — 0 = Accueil, 1 = Commandes, 2 = Abonnement, 3 = Profil.
   int _currentIndex = 0;
+
+  // Sous-état de l'onglet Abonnement (index 2).
+  // Réinitialisé à hub quand l'utilisateur quitte puis revient sur l'onglet.
+  _SubTab _subTab = _SubTab.hub;
+
+  // Plan sélectionné sur PlansScreen — transmis à SubscribeConfirmScreen.
+  SubscriptionPlan? _selectedPlan;
 
   @override
   void initState() {
@@ -101,10 +120,42 @@ class _HomeScreenState extends State<HomeScreen> {
           // embedded: true → pas de Scaffold interne, le Scaffold parent suffit.
           // OrdersListProvider injecté dans le MultiProvider racine (app.dart).
           const OrdersListScreen(embedded: true),
-          // Onglet 2 — Hub abonnement.
-          // embedded: true → même raison que ci-dessus.
-          // SubscriptionProvider injecté dans le MultiProvider racine (app.dart).
-          const SubscriptionHubScreen(embedded: true),
+          // Onglet 2 — IndexedStack interne pour préserver l'état de chaque
+          // sous-écran. Les 3 enfants sont fixes — seul l'index change selon
+          // _subTab. IndexedStack garde les widgets en mémoire entre les
+          // changements d'onglet → SubscriptionHubScreen ne se remonte plus.
+          IndexedStack(
+            index: _subTab.index,
+            children: [
+              // Sous-écran 0 — Hub (page de vente / dashboard / pending).
+              SubscriptionHubScreen(
+                embedded: true,
+                onShowPlans: () => setState(() => _subTab = _SubTab.plans),
+              ),
+              // Sous-écran 1 — Comparaison des plans.
+              PlansScreen(
+                onPlanSelected: (plan) => setState(() {
+                  _selectedPlan = plan;
+                  _subTab = _SubTab.confirm;
+                }),
+                onBack: () => setState(() => _subTab = _SubTab.hub),
+              ),
+              // Sous-écran 2 — Confirmation. Nécessite un plan non-null.
+              // SizedBox.shrink quand aucun plan n'est encore sélectionné
+              // (index != 2) pour éviter un accès null avant la sélection.
+              if (_selectedPlan != null)
+                SubscribeConfirmScreen(
+                  plan: _selectedPlan!,
+                  onSuccess: () => setState(() {
+                    _subTab = _SubTab.hub;
+                    _selectedPlan = null;
+                  }),
+                  onBack: () => setState(() => _subTab = _SubTab.plans),
+                )
+              else
+                const SizedBox.shrink(),
+            ],
+          ),
           // Onglet 3 — Profil (placeholder PROFILE-01).
           const _ProfilePlaceholder(),
         ],
@@ -122,6 +173,9 @@ class _HomeScreenState extends State<HomeScreen> {
           : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
+        // Pas de reset de _subTab ici — l'IndexedStack interne préserve
+        // l'état du sous-écran actif. Le hub affiche le bon état (pending,
+        // actif, vente) car le provider est watché en continu.
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppColors.accent1,
         unselectedItemColor: AppColors.textSecondary,
