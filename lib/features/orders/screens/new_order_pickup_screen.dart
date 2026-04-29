@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../providers/order_draft_provider.dart';
 
 class NewOrderPickupScreen extends StatefulWidget {
@@ -119,7 +120,7 @@ class _NewOrderPickupScreenState extends State<NewOrderPickupScreen> {
               onTap: _pickDateTime,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           const Text(
             'Adresse & instructions',
             style: TextStyle(
@@ -140,12 +141,8 @@ class _NewOrderPickupScreenState extends State<NewOrderPickupScreen> {
             ),
             onChanged: draft.setNotes,
           ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
+          const SizedBox(height: 24),
+          SizedBox(
             height: 52,
             width: double.infinity,
             child: ElevatedButton(
@@ -159,8 +156,10 @@ class _NewOrderPickupScreenState extends State<NewOrderPickupScreen> {
               child: const Text('Voir le récapitulatif'),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+        ],
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 0),
     );
   }
 

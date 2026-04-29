@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../models/order_models.dart';
 import '../providers/order_draft_provider.dart';
 
@@ -48,6 +49,7 @@ class OrderConfirmedScreen extends StatelessWidget {
           foregroundColor: Colors.white,
           automaticallyImplyLeading: false,
         ),
+        bottomNavigationBar: const AppBottomNavBar(currentIndex: 0),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),

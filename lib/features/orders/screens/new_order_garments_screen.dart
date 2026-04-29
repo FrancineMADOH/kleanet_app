@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../catalog/models/catalog_models.dart';
 import '../../catalog/providers/catalog_provider.dart';
 import '../providers/order_draft_provider.dart';
@@ -43,6 +44,7 @@ class _NewOrderGarmentsScreenState extends State<NewOrderGarmentsScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 0),
       body: SafeArea(
         child: Column(
           children: [

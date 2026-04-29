@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../subscription/providers/subscription_provider.dart';
 import '../providers/order_draft_provider.dart';
 
@@ -104,12 +105,8 @@ class NewOrderSummaryScreen extends StatelessWidget {
             'Le total définitif sera confirmé après réception de vos articles.',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
+          const SizedBox(height: 24),
+          SizedBox(
             height: 52,
             width: double.infinity,
             child: ElevatedButton(
@@ -117,8 +114,7 @@ class NewOrderSummaryScreen extends StatelessWidget {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
               ),
-              onPressed:
-                  draft.canSubmit ? () => _confirm(context) : null,
+              onPressed: draft.canSubmit ? () => _confirm(context) : null,
               child: draft.isSubmitting
                   ? const SizedBox(
                       width: 20,
@@ -131,8 +127,10 @@ class NewOrderSummaryScreen extends StatelessWidget {
                   : const Text('Confirmer la commande'),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+        ],
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 0),
     );
   }
 
