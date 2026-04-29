@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../models/faq_models.dart';
 import '../providers/faq_provider.dart';
 
@@ -58,6 +59,7 @@ class _FaqCategoriesScreenState extends State<FaqCategoriesScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
       body: Column(
         children: [
           _SearchBar(
@@ -337,7 +339,7 @@ class _ArticleListTile extends StatelessWidget {
       leading: const Icon(
         Icons.help_outline,
         size: 18,
-        color: AppColors.textSecondary,
+        color: AppColors.accent1,
       ),
       title: Text(
         article.question,

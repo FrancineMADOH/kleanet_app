@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../models/faq_models.dart';
 
 class FaqArticleScreen extends StatelessWidget {
@@ -29,6 +30,7 @@ class FaqArticleScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
         child: Column(
