@@ -30,6 +30,11 @@ import '../../features/orders/screens/orders_list_screen.dart';
 import '../../features/appointments/providers/appointments_provider.dart';
 import '../../features/appointments/repositories/appointment_repository.dart';
 import '../../features/appointments/screens/appointments_screen.dart';
+import '../../features/faq/models/faq_models.dart';
+import '../../features/faq/providers/faq_provider.dart';
+import '../../features/faq/repositories/faq_repository.dart';
+import '../../features/faq/screens/faq_article_screen.dart';
+import '../../features/faq/screens/faq_categories_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/subscription/screens/subscription_hub_screen.dart';
 
@@ -55,6 +60,12 @@ class Routes {
   // Profil — édition et liste des rendez-vous (routes pushées depuis l'onglet 3).
   static const profileEdit = '/profile/edit';
   static const profileAppointments = '/profile/appointments';
+
+  // FAQ — accessible sans authentification.
+  static const faq = '/faq';
+  static String faqArticle(String id) => '/faq/$id';
+  // Pattern GoRoute (avec placeholder :id) — utilisé côté déclaration.
+  static const faqArticlePattern = '/faq/:id';
 
   // Flux "Nouvelle commande" — 4 étapes, sous-routes sous /order/new.
   // Le brouillon est partagé via OrderDraftProvider injecté au-dessus.
@@ -96,7 +107,10 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
       if (status == AuthStatus.authenticated && isAuthRoute) {
         return Routes.home;
       }
-      if (status == AuthStatus.unauthenticated && !isAuthRoute) {
+      // La FAQ est accessible sans authentification.
+      final isFaqRoute =
+          location == Routes.faq || location.startsWith('${Routes.faq}/');
+      if (status == AuthStatus.unauthenticated && !isAuthRoute && !isFaqRoute) {
         return Routes.auth;
       }
       return null;
@@ -185,6 +199,28 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
             state.extra is Order ? null : Routes.home,
         builder: (_, state) =>
             OrderConfirmedScreen(order: state.extra as Order),
+      ),
+      // FAQ — accessible sans authentification (voir guard ci-dessus).
+      // FaqProvider factory-scopé sur /faq pour éviter de le monter
+      // au niveau racine alors qu'il n'est utilisé que depuis cet écran.
+      GoRoute(
+        path: Routes.faq,
+        builder: (context, _) => ChangeNotifierProvider(
+          create: (ctx) => FaqProvider(
+            repository: FaqRepository(apiClient: ctx.read<ApiClient>()),
+          ),
+          child: const FaqCategoriesScreen(),
+        ),
+      ),
+      // Article FAQ — l'article complet est passé via `extra` depuis
+      // FaqCategoriesScreen. Si extra est null (deep link direct), on
+      // renvoie sur /faq pour forcer le chargement des catégories d'abord.
+      GoRoute(
+        path: Routes.faqArticlePattern,
+        redirect: (_, state) =>
+            state.extra is FaqArticle ? null : Routes.faq,
+        builder: (_, state) =>
+            FaqArticleScreen(article: state.extra as FaqArticle),
       ),
       GoRoute(
         path: Routes.orderDetailPattern,

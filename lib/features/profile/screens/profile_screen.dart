@@ -56,6 +56,12 @@ class ProfileScreen extends StatelessWidget {
             label: 'Mes rendez-vous',
             onTap: () => context.push(Routes.profileAppointments),
           ),
+          const SizedBox(height: 8),
+          _NavTile(
+            icon: Icons.help_outline,
+            label: 'Aide / FAQ',
+            onTap: () => context.push(Routes.faq),
+          ),
 
           const SizedBox(height: 32),
           const Divider(color: AppColors.border),
