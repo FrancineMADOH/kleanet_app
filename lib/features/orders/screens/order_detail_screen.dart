@@ -94,6 +94,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const SizedBox(height: 8),
             _NotesCard(notes: order.notes!),
           ],
+          // Bouton "Laisser un avis" — visible uniquement pour les commandes
+          // livrées. La référence commande est passée en extra pour l'affichage
+          // dans le formulaire.
+          if (order.status == OrderStatus.delivered) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push(
+                  Routes.feedbackForm(order.id.toString()),
+                  extra: order.reference,
+                ),
+                icon: const Icon(Icons.star_outline, size: 18),
+                label: const Text('Laisser un avis'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent1,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
         ],
       ),

@@ -35,6 +35,9 @@ import '../../features/faq/providers/faq_provider.dart';
 import '../../features/faq/repositories/faq_repository.dart';
 import '../../features/faq/screens/faq_article_screen.dart';
 import '../../features/faq/screens/faq_categories_screen.dart';
+import '../../features/feedback/providers/feedback_provider.dart';
+import '../../features/feedback/screens/feedback_form_screen.dart';
+import '../../features/feedback/screens/feedback_success_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/subscription/screens/subscription_hub_screen.dart';
 
@@ -66,6 +69,12 @@ class Routes {
   static String faqArticle(String id) => '/faq/$id';
   // Pattern GoRoute (avec placeholder :id) — utilisé côté déclaration.
   static const faqArticlePattern = '/faq/:id';
+
+  // Feedback — accessible uniquement depuis une commande livrée.
+  // orderId passé en path param, référence commande passée en extra (String?).
+  static const feedbackSuccess = '/feedback/success';
+  static String feedbackForm(String orderId) => '/feedback/$orderId';
+  static const feedbackFormPattern = '/feedback/:orderId';
 
   // Flux "Nouvelle commande" — 4 étapes, sous-routes sous /order/new.
   // Le brouillon est partagé via OrderDraftProvider injecté au-dessus.
@@ -221,6 +230,27 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
             state.extra is FaqArticle ? null : Routes.faq,
         builder: (_, state) =>
             FaqArticleScreen(article: state.extra as FaqArticle),
+      ),
+      // Formulaire de feedback — provider factory-scopé, orderId extrait du path.
+      // La référence commande optionnelle arrive via extra (String?) pour l'affichage.
+      GoRoute(
+        path: Routes.feedbackFormPattern,
+        redirect: (_, state) {
+          final raw = state.pathParameters['orderId'];
+          return int.tryParse(raw ?? '') == null ? Routes.orders : null;
+        },
+        builder: (context, state) {
+          final orderId = int.parse(state.pathParameters['orderId']!);
+          final orderRef = state.extra as String?;
+          return ChangeNotifierProvider(
+            create: (_) => FeedbackProvider(),
+            child: FeedbackFormScreen(orderId: orderId, orderReference: orderRef),
+          );
+        },
+      ),
+      GoRoute(
+        path: Routes.feedbackSuccess,
+        builder: (_, __) => const FeedbackSuccessScreen(),
       ),
       GoRoute(
         path: Routes.orderDetailPattern,
