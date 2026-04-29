@@ -52,7 +52,9 @@ class ApiEndpoints {
   static const subscription = '$apiPrefix/subscription/';
 
   // --- FAQ ---
-  static const faqCategories = '$apiPrefix/faq/categories';
+  // L'API retourne une liste plate de FaqItem — le groupement par catégorie
+  // est fait côté Flutter dans FaqRepository._groupByCategory().
+  static const faqCategories = '$apiPrefix/faq/';
   static String faqArticle(String id) => '$apiPrefix/faq/$id';
 
   // --- Feedback ---
