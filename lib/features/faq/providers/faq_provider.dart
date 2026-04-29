@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../models/faq_models.dart';
 import '../repositories/faq_repository.dart';
 
@@ -44,8 +45,10 @@ class FaqProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _categories = await _repo.listCategories();
-    } catch (e) {
-      _error = e.toString();
+    } on ApiException catch (e) {
+      _error = e.message;
+    } catch (_) {
+      _error = 'Erreur de connexion. Veuillez réessayer.';
     } finally {
       _isLoading = false;
       notifyListeners();

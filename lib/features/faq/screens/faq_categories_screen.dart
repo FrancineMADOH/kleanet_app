@@ -193,15 +193,24 @@ class _FaqCategoriesScreenState extends State<FaqCategoriesScreen> {
   }
 
   /// Ouvre WhatsApp natif si installé, sinon bascule sur wa.me dans le navigateur.
+  /// Un try/catch global protège contre les PlatformException sur certains appareils
+  /// qui bloquent les schémas d'URL non reconnus.
   Future<void> _openWhatsApp(BuildContext context) async {
     final encoded = Uri.encodeComponent(_whatsappText);
     final nativeUri = Uri.parse('whatsapp://send?phone=$_whatsappPhone&text=$encoded');
     final webUri = Uri.parse('https://wa.me/$_whatsappPhone?text=$encoded');
 
-    if (await canLaunchUrl(nativeUri)) {
-      await launchUrl(nativeUri);
-    } else {
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    try {
+      if (await canLaunchUrl(nativeUri)) {
+        await launchUrl(nativeUri);
+      } else {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir WhatsApp.')),
+      );
     }
   }
 }
