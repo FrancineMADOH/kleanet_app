@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../models/subscription_models.dart';
 import '../providers/subscription_provider.dart';
@@ -30,10 +31,14 @@ class SubscriptionHubScreen extends StatefulWidget {
     super.key,
     this.embedded = false,
     this.onShowPlans,
+    this.onChangePlan,
   });
 
   final bool embedded;
   final VoidCallback? onShowPlans;
+  /// Callback déclenché depuis le Dashboard quand l'abonné actif veut
+  /// changer de plan — HomeScreen bascule en mode isChangingPlan = true.
+  final VoidCallback? onChangePlan;
 
   @override
   State<SubscriptionHubScreen> createState() => _SubscriptionHubScreenState();
@@ -72,6 +77,7 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
       body: _buildBody(provider),
     );
   }
@@ -91,8 +97,11 @@ class _SubscriptionHubScreenState extends State<SubscriptionHubScreen> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: switch (sub?.state) {
-        // Abonnement actif → dashboard.
-        SubscriptionState.active => _Dashboard(subscription: sub!),
+        // Abonnement actif → dashboard avec option changement de plan.
+        SubscriptionState.active => _Dashboard(
+            subscription: sub!,
+            onChangePlan: widget.onChangePlan,
+          ),
         // En attente de validation admin → écran d'attente.
         // Priorité absolue : bloque toute tentative de nouvelle souscription.
         SubscriptionState.pending => _PendingPage(subscription: sub!),
@@ -235,8 +244,10 @@ class _BenefitRow extends StatelessWidget {
 // ----------------------------------------------------------------
 
 class _Dashboard extends StatelessWidget {
-  const _Dashboard({required this.subscription});
+  const _Dashboard({required this.subscription, this.onChangePlan});
   final ActiveSubscription subscription;
+  /// Déclenche le flux changement de plan depuis le dashboard.
+  final VoidCallback? onChangePlan;
 
   @override
   Widget build(BuildContext context) {
@@ -296,8 +307,7 @@ class _Dashboard extends StatelessWidget {
         // Note overage.
         _OverageNote(price: subscription.overagePricePerKg),
         const SizedBox(height: 24),
-        // Bouton pickup — démarre le flux commande qui enchaîne
-        // création + planification pickup (étapes 1 → 2 → 3).
+        // Bouton pickup principal.
         ElevatedButton.icon(
           onPressed: () => context.push(Routes.newOrder),
           icon: const Icon(Icons.directions_bike),
@@ -314,6 +324,25 @@ class _Dashboard extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 10),
+        // Bouton secondaire — changer de plan (visible uniquement si callback fourni).
+        if (onChangePlan != null)
+          OutlinedButton.icon(
+            onPressed: onChangePlan,
+            icon: const Icon(Icons.swap_horiz, size: 18),
+            label: const Text(
+              'Changer de plan',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
       ],
     );

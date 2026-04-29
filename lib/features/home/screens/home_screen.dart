@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../catalog/models/catalog_models.dart';
 import '../../catalog/providers/catalog_provider.dart';
@@ -55,6 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // Plan sélectionné sur PlansScreen — transmis à SubscribeConfirmScreen.
   SubscriptionPlan? _selectedPlan;
 
+  // Quand true : l'utilisateur a un abonnement actif et veut changer de plan.
+  // Désactive les guards anti-double-souscription dans PlansScreen / ConfirmScreen.
+  bool _isChangingPlan = false;
+
   @override
   void initState() {
     super.initState();
@@ -69,11 +74,24 @@ class _HomeScreenState extends State<HomeScreen> {
     await context.read<CatalogProvider>().load(forceRefresh: true);
   }
 
-  // Titre de l'AppBar selon l'onglet actif.
+  // Retour arrière dans l'onglet Abonnement — réinitialise sous-état et mode.
+  void _onSubscriptionBack() => setState(() {
+        _subTab = _SubTab.hub;
+        _isChangingPlan = false;
+      });
+
+  // Titre de l'AppBar selon l'onglet et le sous-état abonnement actif.
   String get _appBarTitle => switch (_currentIndex) {
         0 => 'Kleanet',
         1 => 'Mes commandes',
-        2 => 'Mon abonnement',
+        2 => switch (_subTab) {
+            _SubTab.hub => 'Mon abonnement',
+            _SubTab.plans =>
+              _isChangingPlan ? 'Changer de plan' : 'Choisir un plan',
+            _SubTab.confirm => _isChangingPlan
+                ? 'Confirmer le changement'
+                : 'Confirmer l\'abonnement',
+          },
         3 => 'Profil',
         _ => 'Kleanet',
       };
@@ -82,12 +100,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Pas de bouton retour — ce sont des onglets racine.
         automaticallyImplyLeading: false,
+        // Bouton retour uniquement dans les sous-onglets de l'abonnement.
+        leading: (_currentIndex == 2 && _subTab != _SubTab.hub)
+            ? BackButton(
+                color: Colors.white,
+                onPressed: _onSubscriptionBack,
+              )
+            : null,
         title: Text(_appBarTitle),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        // Déconnexion déplacée dans l'onglet Profil (tab 3).
       ),
       // IndexedStack conserve l'état de chaque onglet en mémoire —
       // OrdersListScreen ne recharge pas ses données lors d'un retour sur l'onglet.
@@ -103,40 +126,61 @@ class _HomeScreenState extends State<HomeScreen> {
           // embedded: true → pas de Scaffold interne, le Scaffold parent suffit.
           // OrdersListProvider injecté dans le MultiProvider racine (app.dart).
           const OrdersListScreen(embedded: true),
-          // Onglet 2 — IndexedStack interne pour préserver l'état de chaque
-          // sous-écran. Les 3 enfants sont fixes — seul l'index change selon
-          // _subTab. IndexedStack garde les widgets en mémoire entre les
-          // changements d'onglet → SubscriptionHubScreen ne se remonte plus.
+          // Onglet 2 — IndexedStack interne pour les 3 sous-états abonnement.
+          // Tous les enfants sont fixes (plus de if/else conditionnel) — P3.
+          // SubscribeConfirmScreen reçoit plan nullable et gère SizedBox en interne.
+          // PlansScreen et SubscribeConfirmScreen sont embedded : pas de Scaffold
+          // imbriqué, l'AppBar de HomeScreen gère le titre et le bouton retour — P1.
+          // loadPlans() est déclenché lazily par les callbacks, pas dans initState — P2.
           IndexedStack(
             index: _subTab.index,
             children: [
               // Sous-écran 0 — Hub (page de vente / dashboard / pending).
               SubscriptionHubScreen(
                 embedded: true,
-                onShowPlans: () => setState(() => _subTab = _SubTab.plans),
+                onShowPlans: () {
+                  final sp = context.read<SubscriptionProvider>();
+                  if (sp.plans.isEmpty && !sp.isLoadingPlans) sp.loadPlans();
+                  setState(() => _subTab = _SubTab.plans);
+                },
+                onChangePlan: () {
+                  final sp = context.read<SubscriptionProvider>();
+                  if (sp.plans.isEmpty && !sp.isLoadingPlans) sp.loadPlans();
+                  setState(() {
+                    _isChangingPlan = true;
+                    _subTab = _SubTab.plans;
+                  });
+                },
               ),
-              // Sous-écran 1 — Comparaison des plans.
+              // Sous-écran 1 — Comparaison des plans (embedded, sans Scaffold).
               PlansScreen(
+                embedded: true,
+                isChangingPlan: _isChangingPlan,
+                currentPlanName: _isChangingPlan
+                    ? context.read<SubscriptionProvider>().subscription?.planName
+                    : null,
                 onPlanSelected: (plan) => setState(() {
                   _selectedPlan = plan;
                   _subTab = _SubTab.confirm;
                 }),
-                onBack: () => setState(() => _subTab = _SubTab.hub),
+                onBack: _onSubscriptionBack,
               ),
-              // Sous-écran 2 — Confirmation. Nécessite un plan non-null.
-              // SizedBox.shrink quand aucun plan n'est encore sélectionné
-              // (index != 2) pour éviter un accès null avant la sélection.
-              if (_selectedPlan != null)
-                SubscribeConfirmScreen(
-                  plan: _selectedPlan!,
-                  onSuccess: () => setState(() {
-                    _subTab = _SubTab.hub;
-                    _selectedPlan = null;
-                  }),
-                  onBack: () => setState(() => _subTab = _SubTab.plans),
-                )
-              else
-                const SizedBox.shrink(),
+              // Sous-écran 2 — Confirmation (embedded, plan nullable).
+              // SubscribeConfirmScreen retourne SizedBox si plan == null — slot stable.
+              SubscribeConfirmScreen(
+                embedded: true,
+                isChangingPlan: _isChangingPlan,
+                currentPlanName: _isChangingPlan
+                    ? context.read<SubscriptionProvider>().subscription?.planName
+                    : null,
+                plan: _selectedPlan,
+                onSuccess: () => setState(() {
+                  _subTab = _SubTab.hub;
+                  _selectedPlan = null;
+                  _isChangingPlan = false;
+                }),
+                onBack: () => setState(() => _subTab = _SubTab.plans),
+              ),
             ],
           ),
           // Onglet 3 — Profil (PROFILE-01). Déconnexion dans ProfileScreen.

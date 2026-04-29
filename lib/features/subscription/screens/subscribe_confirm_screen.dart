@@ -28,6 +28,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../models/subscription_models.dart';
 import '../providers/subscription_provider.dart';
 import 'subscription_hub_screen.dart' show SubscriptionSectionLabel;
@@ -35,12 +36,17 @@ import 'subscription_hub_screen.dart' show SubscriptionSectionLabel;
 class SubscribeConfirmScreen extends StatefulWidget {
   const SubscribeConfirmScreen({
     super.key,
-    required this.plan,
+    this.plan,
     this.onSuccess,
     this.onBack,
+    this.embedded = false,
+    this.isChangingPlan = false,
+    this.currentPlanName,
   });
 
-  final SubscriptionPlan plan;
+  /// Plan sélectionné — nullable en mode embarqué (IndexedStack stable).
+  /// Si null, l'écran retourne un SizedBox vide sans rien afficher.
+  final SubscriptionPlan? plan;
 
   /// Appelé après une souscription réussie — le parent revient au hub qui
   /// affiche alors _PendingPage. Fallback GoRouter si null.
@@ -49,6 +55,18 @@ class SubscribeConfirmScreen extends StatefulWidget {
   /// Appelé quand l'utilisateur appuie sur le bouton retour de l'AppBar.
   /// Fourni uniquement en mode embarqué (l'onglet Abonnement de HomeScreen).
   final VoidCallback? onBack;
+
+  /// Quand true : l'écran est monté dans l'IndexedStack de HomeScreen —
+  /// pas de Scaffold propre, l'AppBar parent gère titre et navigation.
+  final bool embedded;
+
+  /// Quand true : l'utilisateur change son plan actif (pas une première
+  /// souscription) — le guard anti-double-souscription est désactivé et
+  /// un bandeau d'avertissement remplace/complémente le récapitulatif.
+  final bool isChangingPlan;
+
+  /// Nom du plan actuel — affiché dans le bandeau de changement.
+  final String? currentPlanName;
 
   @override
   State<SubscribeConfirmScreen> createState() => _SubscribeConfirmScreenState();
@@ -63,10 +81,11 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    // Guard : si un abonnement existe déjà (pending inclus), on ne peut pas
-    // souscrire à nouveau — renvoyer immédiatement au hub.
+    // Guard anti-double-souscription — désactivé en mode changement de plan
+    // (isChangingPlan = true) où l'abonnement existant est volontaire.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (widget.isChangingPlan) return;
       final provider = context.read<SubscriptionProvider>();
       if (provider.subscription != null) {
         widget.onBack?.call();
@@ -81,7 +100,7 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
     final provider = context.read<SubscriptionProvider>();
 
     // 2. Appel API en arrière-plan.
-    final success = await provider.subscribe(widget.plan.id);
+    final success = await provider.subscribe(widget.plan!.id);
 
     if (!mounted) return;
 
@@ -106,98 +125,65 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Slot vide dans l'IndexedStack quand aucun plan n'a encore été sélectionné.
+    if (widget.plan == null) return const SizedBox.shrink();
+
+    final content = _buildContent();
+
+    // Mode embarqué : pas de Scaffold, le parent (HomeScreen) gère AppBar + nav.
+    if (widget.embedded) return content;
+
+    // Mode route autonome : Scaffold complet avec bottom nav.
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Confirmer l\'abonnement'),
+        title: Text(widget.isChangingPlan
+            ? 'Confirmer le changement'
+            : 'Confirmer l\'abonnement'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        // Bouton retour manuel fourni par le parent en mode embarqué.
         leading: widget.onBack != null
-            ? BackButton(
-                onPressed: widget.onBack,
-                color: Colors.white,
-              )
+            ? BackButton(onPressed: widget.onBack, color: Colors.white)
             : null,
         automaticallyImplyLeading: widget.onBack == null,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                // En-tête plan.
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.workspace_premium,
-                      size: 48,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  widget.plan.name,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${CurrencyUtils.formatXAF(widget.plan.recurringFee)} ${widget.plan.billingCycle.label}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // Récapitulatif des inclusions.
-                const SubscriptionSectionLabel('Ce qui est inclus'),
-                const SizedBox(height: 12),
-                _SummaryCard(
-                  rows: [
-                    ('Poids inclus',
-                        '${widget.plan.includedWeightKg.toStringAsFixed(0)} kg'),
-                    ('Pièces incluses',
-                        '${widget.plan.includedPieces.toStringAsFixed(0)} pièces'),
-                    ('Pickups / semaine',
-                        '${widget.plan.includedPickupsPerWeek}'),
-                    ('Surplus au-delà du quota',
-                        '${CurrencyUtils.formatXAF(widget.plan.overagePricePerKg)} / kg'),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Note paiement.
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
+      body: content,
+    );
+  }
+
+  /// Contenu partagé entre mode embarqué et mode autonome.
+  Widget _buildContent() {
+    final plan = widget.plan!;
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              // Bandeau changement de plan — affiché uniquement en mode changement.
+              if (widget.isChangingPlan && widget.currentPlanName != null) ...[
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline,
-                          size: 16, color: AppColors.textSecondary),
-                      SizedBox(width: 8),
+                      const Icon(Icons.swap_horiz,
+                          size: 18, color: AppColors.warning),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Le paiement s\'effectue à la livraison (cash ou MoMo). '
-                          'Aucun prélèvement automatique.',
-                          style: TextStyle(
+                          'Votre plan "${widget.currentPlanName}" sera remplacé '
+                          'dès confirmation de votre paiement.',
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w600,
                             height: 1.4,
                           ),
                         ),
@@ -205,20 +191,94 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
-            ),
+              // En-tête plan.
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.workspace_premium,
+                      size: 48, color: AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                plan.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${CurrencyUtils.formatXAF(plan.recurringFee)} ${plan.billingCycle.label}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 32),
+              const SubscriptionSectionLabel('Ce qui est inclus'),
+              const SizedBox(height: 12),
+              _SummaryCard(
+                rows: [
+                  ('Poids inclus',
+                      '${plan.includedWeightKg.toStringAsFixed(0)} kg'),
+                  ('Pièces incluses',
+                      '${plan.includedPieces.toStringAsFixed(0)} pièces'),
+                  ('Pickups / semaine', '${plan.includedPickupsPerWeek}'),
+                  ('Surplus au-delà du quota',
+                      '${CurrencyUtils.formatXAF(plan.overagePricePerKg)} / kg'),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Note paiement.
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 16, color: AppColors.textSecondary),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Le paiement s\'effectue à la livraison (cash ou MoMo). '
+                        'Aucun prélèvement automatique.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          // Zone CTA fixée en bas : bouton OU message de confirmation inline.
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: _submitted
-                  ? _SubmittedConfirmation()
-                  : _ConfirmButton(onTap: _confirm),
-            ),
+        ),
+        // Zone CTA fixée en bas : bouton OU message de confirmation inline.
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child:
+                _submitted ? _SubmittedConfirmation() : _ConfirmButton(onTap: _confirm),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

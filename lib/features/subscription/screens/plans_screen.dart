@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../models/subscription_models.dart';
 import '../providers/subscription_provider.dart';
@@ -27,6 +28,9 @@ class PlansScreen extends StatefulWidget {
     super.key,
     this.onPlanSelected,
     this.onBack,
+    this.embedded = false,
+    this.isChangingPlan = false,
+    this.currentPlanName,
   });
 
   /// Appelé quand l'utilisateur clique "Choisir ce plan" — le plan est transmis
@@ -37,6 +41,16 @@ class PlansScreen extends StatefulWidget {
   /// Fourni uniquement en mode embarqué (l'onglet Abonnement de HomeScreen).
   final VoidCallback? onBack;
 
+  /// Quand true : pas de Scaffold propre — l'AppBar de HomeScreen gère la nav.
+  final bool embedded;
+
+  /// Quand true : l'utilisateur change son plan actif — le guard est assoupli
+  /// et le plan actuel est mis en évidence dans la liste.
+  final bool isChangingPlan;
+
+  /// Nom du plan actif — utilisé pour afficher le badge "Plan actuel".
+  final String? currentPlanName;
+
   @override
   State<PlansScreen> createState() => _PlansScreenState();
 }
@@ -46,19 +60,19 @@ class _PlansScreenState extends State<PlansScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Guard : si l'utilisateur a déjà un abonnement (pending inclus),
-      // le renvoyer immédiatement au hub — on ne doit pas afficher les plans.
+      if (!mounted) return;
       final provider = context.read<SubscriptionProvider>();
-      if (provider.subscription != null) {
-        // En mode embarqué onBack est toujours fourni par HomeScreen.
-        assert(widget.onBack != null,
-            'PlansScreen : onBack requis en mode embarqué quand un abonnement existe.');
+      // Guard : bloque l'accès aux plans si abonnement existant,
+      // SAUF en mode changement de plan (isChangingPlan = true).
+      if (provider.subscription != null && !widget.isChangingPlan) {
         widget.onBack?.call();
         return;
       }
-      // Ne charge les plans que si le provider n'en a pas encore — évite
-      // un appel réseau inutile lors d'un remontage (IndexedStack).
-      if (provider.plans.isEmpty && !provider.isLoadingPlans) {
+      // Chargement lazy en mode standalone uniquement — en mode embarqué,
+      // HomeScreen déclenche loadPlans() avant de basculer sur cet onglet.
+      if (!widget.embedded &&
+          provider.plans.isEmpty &&
+          !provider.isLoadingPlans) {
         provider.loadPlans();
       }
     });
@@ -68,20 +82,22 @@ class _PlansScreenState extends State<PlansScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<SubscriptionProvider>();
 
+    // Mode embarqué : retourne le contenu directement, sans Scaffold.
+    // L'AppBar et la BottomNavBar de HomeScreen gèrent la navigation.
+    if (widget.embedded) return _buildBody(provider);
+
+    // Mode route autonome : Scaffold complet avec bottom nav.
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Choisir un plan'),
+        title: Text(widget.isChangingPlan ? 'Changer de plan' : 'Choisir un plan'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        // Bouton retour manuel fourni par le parent en mode embarqué.
         leading: widget.onBack != null
-            ? BackButton(
-                onPressed: widget.onBack,
-                color: Colors.white,
-              )
+            ? BackButton(onPressed: widget.onBack, color: Colors.white)
             : null,
         automaticallyImplyLeading: widget.onBack == null,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
       body: _buildBody(provider),
     );
   }
@@ -113,6 +129,9 @@ class _PlansScreenState extends State<PlansScreen> {
       itemBuilder: (_, i) => _PlanCard(
         plan: provider.plans[i],
         onPlanSelected: widget.onPlanSelected,
+        // Badge "Plan actuel" si le nom correspond au plan de l'abonné.
+        isCurrentPlan: widget.currentPlanName != null &&
+            provider.plans[i].name == widget.currentPlanName,
       ),
     );
   }
@@ -123,10 +142,16 @@ class _PlansScreenState extends State<PlansScreen> {
 // ----------------------------------------------------------------
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.plan, this.onPlanSelected});
+  const _PlanCard({
+    required this.plan,
+    this.onPlanSelected,
+    this.isCurrentPlan = false,
+  });
   final SubscriptionPlan plan;
   // Callback transmis par PlansScreen pour déclencher la transition vers confirm.
   final void Function(SubscriptionPlan plan)? onPlanSelected;
+  // Quand true : badge "Plan actuel" (cyan) à la place ou en plus de "Recommandé".
+  final bool isCurrentPlan;
 
   @override
   Widget build(BuildContext context) {
@@ -135,15 +160,36 @@ class _PlanCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: plan.isRecommended ? AppColors.primary : AppColors.border,
-          width: plan.isRecommended ? 2 : 1,
+          color: isCurrentPlan
+              ? AppColors.accent1
+              : plan.isRecommended
+                  ? AppColors.primary
+                  : AppColors.border,
+          width: (isCurrentPlan || plan.isRecommended) ? 2 : 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Badge "Recommandé" sur les plans mis en avant.
-          if (plan.isRecommended)
+          // Badge "Plan actuel" (cyan) prioritaire sur "Recommandé" (bleu nuit).
+          if (isCurrentPlan)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: const BoxDecoration(
+                color: AppColors.accent1,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+              ),
+              child: const Text(
+                'Plan actuel',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          else if (plan.isRecommended)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 6),
               decoration: const BoxDecoration(
