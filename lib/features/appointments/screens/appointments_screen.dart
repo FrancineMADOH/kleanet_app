@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../models/appointment_models.dart';
 import '../providers/appointments_provider.dart';
 
@@ -47,6 +48,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
       body: RefreshIndicator(
         onRefresh: () => context.read<AppointmentsProvider>().load(),
         child: _buildBody(provider),
