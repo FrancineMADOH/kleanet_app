@@ -10,6 +10,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../api/api_client.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/auth_screen.dart';
 import '../../features/auth/screens/otp_screen.dart';
@@ -26,6 +27,10 @@ import '../../features/orders/screens/new_order_summary_screen.dart';
 import '../../features/orders/screens/order_confirmed_screen.dart';
 import '../../features/orders/screens/order_detail_screen.dart';
 import '../../features/orders/screens/orders_list_screen.dart';
+import '../../features/appointments/providers/appointments_provider.dart';
+import '../../features/appointments/repositories/appointment_repository.dart';
+import '../../features/appointments/screens/appointments_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/subscription/screens/subscription_hub_screen.dart';
 
 /// Catalogue centralisé des chemins de route. Les chemins littéraux ne
@@ -46,6 +51,10 @@ class Routes {
   // Abonnement — hub uniquement. Plans et confirmation sont gérés en sous-navigation
   // inline dans HomeScreen (onglet 2) — pas de routes GoRouter dédiées.
   static const subscription = '/subscription';
+
+  // Profil — édition et liste des rendez-vous (routes pushées depuis l'onglet 3).
+  static const profileEdit = '/profile/edit';
+  static const profileAppointments = '/profile/appointments';
 
   // Flux "Nouvelle commande" — 4 étapes, sous-routes sous /order/new.
   // Le brouillon est partagé via OrderDraftProvider injecté au-dessus.
@@ -133,6 +142,24 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
       GoRoute(
         path: Routes.subscription,
         builder: (_, __) => const SubscriptionHubScreen(),
+      ),
+      // Édition du profil — pushée depuis l'onglet Profil.
+      GoRoute(
+        path: Routes.profileEdit,
+        builder: (_, __) => const EditProfileScreen(),
+      ),
+      // Rendez-vous — AppointmentsProvider factory-scopé à cet écran pour
+      // éviter de le monter au niveau app alors qu'il n'est utilisé que ici.
+      GoRoute(
+        path: Routes.profileAppointments,
+        builder: (context, _) => ChangeNotifierProvider(
+          create: (ctx) => AppointmentsProvider(
+            repository: AppointmentRepository(
+              apiClient: ctx.read<ApiClient>(),
+            ),
+          ),
+          child: const AppointmentsScreen(),
+        ),
       ),
       // Flux Nouvelle commande — déclaré en routes "plates" (pas de
       // sous-routes imbriquées) pour que chaque écran puisse utiliser

@@ -67,6 +67,10 @@ class AuthProvider extends ChangeNotifier {
   int _attemptsUsed = 0;
   DateTime? _lockedUntil;
 
+  // --- État mise à jour profil ---
+  bool _isUpdatingProfile = false;
+  String? _updateProfileError;
+
   // Getters publics — l'UI consomme toujours via ces getters, jamais les
   // champs directement (pour préserver l'encapsulation).
   AuthStatus get status => _status;
@@ -80,6 +84,8 @@ class AuthProvider extends ChangeNotifier {
   int get attemptsRemaining =>
       (maxAttempts - _attemptsUsed).clamp(0, maxAttempts);
   DateTime? get lockedUntil => _lockedUntil;
+  bool get isUpdatingProfile => _isUpdatingProfile;
+  String? get updateProfileError => _updateProfileError;
 
   /// Lit le token et, si présent, confirme la session via /profile.
   /// Si /profile throw (401, réseau, …) → ApiClient gère déjà le refresh,
@@ -220,6 +226,31 @@ class AuthProvider extends ChangeNotifier {
     _otpStatus = OtpFlowStatus.idle;
     _errorMessage = null;
     _setStatus(AuthStatus.unauthenticated);
+  }
+
+  /// Met à jour le nom et/ou l'email du profil. Retourne true si succès.
+  /// En cas d'erreur, [updateProfileError] contient le message à afficher.
+  Future<bool> updateProfile({required String name, String? email}) async {
+    _isUpdatingProfile = true;
+    _updateProfileError = null;
+    notifyListeners();
+
+    try {
+      _profile = await _authRepository.updateProfile(name: name, email: email);
+      return true;
+    } on ApiException catch (e) {
+      _updateProfileError = e.message;
+      return false;
+    } on Exception catch (e, stack) {
+      if (kDebugMode) {
+        debugPrint('[AuthProvider] updateProfile error: $e\n$stack');
+      }
+      _updateProfileError = 'Impossible de mettre à jour le profil.';
+      return false;
+    } finally {
+      _isUpdatingProfile = false;
+      notifyListeners();
+    }
   }
 
   // --- Gestion du lockout persistant ---

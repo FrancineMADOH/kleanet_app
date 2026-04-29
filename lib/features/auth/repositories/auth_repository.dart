@@ -58,6 +58,27 @@ class AuthRepository {
     );
   }
 
+  /// Met à jour le nom et/ou l'email du client via PATCH /profile/.
+  /// Retourne le profil mis à jour — utilisé par AuthProvider pour
+  /// rafraîchir _profile sans refaire un fetchProfile() séparé.
+  Future<UserProfile> updateProfile({
+    required String name,
+    String? email,
+  }) async {
+    final response = await _apiClient.patch<Map<String, dynamic>>(
+      ApiEndpoints.profile,
+      data: {
+        'name': name,
+        if (email != null && email.isNotEmpty) 'email': email,
+      },
+    );
+    return parseOrThrow(
+      response.data,
+      UserProfile.fromJson,
+      'update profile response',
+    );
+  }
+
   /// Révoque le refresh token côté backend (optionnel — on peut logout
   /// localement sans attendre cet appel, mais c'est plus propre).
   Future<void> logout(String refreshToken) async {

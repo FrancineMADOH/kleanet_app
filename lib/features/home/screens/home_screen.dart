@@ -25,10 +25,10 @@ import 'package:provider/provider.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../catalog/models/catalog_models.dart';
 import '../../catalog/providers/catalog_provider.dart';
 import '../../orders/screens/orders_list_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 import '../../subscription/models/subscription_models.dart';
 import '../../subscription/screens/subscribe_confirm_screen.dart';
 import '../../subscription/screens/plans_screen.dart';
@@ -69,15 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await context.read<CatalogProvider>().load(forceRefresh: true);
   }
 
-  Future<void> _handleLogout() async {
-    final auth = context.read<AuthProvider>();
-    final catalog = context.read<CatalogProvider>();
-    await auth.signOut();
-    await catalog.clear();
-    // Pas besoin de context.go — le router redirect listener bascule
-    // automatiquement sur /auth quand AuthStatus passe à unauthenticated.
-  }
-
   // Titre de l'AppBar selon l'onglet actif.
   String get _appBarTitle => switch (_currentIndex) {
         0 => 'Kleanet',
@@ -96,15 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(_appBarTitle),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        // Bouton déconnexion uniquement sur l'onglet Accueil.
-        actions: [
-          if (_currentIndex == 0)
-            IconButton(
-              tooltip: 'Se déconnecter',
-              icon: const Icon(Icons.logout),
-              onPressed: _handleLogout,
-            ),
-        ],
+        // Déconnexion déplacée dans l'onglet Profil (tab 3).
       ),
       // IndexedStack conserve l'état de chaque onglet en mémoire —
       // OrdersListScreen ne recharge pas ses données lors d'un retour sur l'onglet.
@@ -156,8 +139,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox.shrink(),
             ],
           ),
-          // Onglet 3 — Profil (placeholder PROFILE-01).
-          const _ProfilePlaceholder(),
+          // Onglet 3 — Profil (PROFILE-01). Déconnexion dans ProfileScreen.
+          const ProfileScreen(),
         ],
       ),
       // FAB uniquement sur l'onglet Accueil — context.push pour conserver
@@ -268,44 +251,6 @@ class _CatalogTab extends StatelessWidget {
           priceLabel: catalog.formattedPriceFor(type),
         );
       },
-    );
-  }
-}
-
-// ----------------------------------------------------------------
-// Onglet 3 — Profil (placeholder)
-// ----------------------------------------------------------------
-
-/// Placeholder affiché en attendant l'implémentation de PROFILE-01.
-class _ProfilePlaceholder extends StatelessWidget {
-  const _ProfilePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person, size: 64, color: AppColors.textSecondary),
-          SizedBox(height: 16),
-          Text(
-            'Profil',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Bientôt disponible',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
