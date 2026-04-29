@@ -50,10 +50,17 @@ class _PlansScreenState extends State<PlansScreen> {
       // le renvoyer immédiatement au hub — on ne doit pas afficher les plans.
       final provider = context.read<SubscriptionProvider>();
       if (provider.subscription != null) {
+        // En mode embarqué onBack est toujours fourni par HomeScreen.
+        assert(widget.onBack != null,
+            'PlansScreen : onBack requis en mode embarqué quand un abonnement existe.');
         widget.onBack?.call();
         return;
       }
-      provider.loadPlans();
+      // Ne charge les plans que si le provider n'en a pas encore — évite
+      // un appel réseau inutile lors d'un remontage (IndexedStack).
+      if (provider.plans.isEmpty && !provider.isLoadingPlans) {
+        provider.loadPlans();
+      }
     });
   }
 

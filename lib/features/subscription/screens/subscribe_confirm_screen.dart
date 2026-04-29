@@ -106,10 +106,6 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // On écoute le provider pour accéder à isSubscribing si besoin futur,
-    // mais la logique de visibilité du bouton repose sur _submitted (local).
-    context.watch<SubscriptionProvider>();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Confirmer l\'abonnement'),

@@ -275,12 +275,8 @@ class _Dashboard extends StatelessWidget {
           label: 'Pièces',
           used: '${(subscription.includedPieces - usage.remainingPieces).toStringAsFixed(0)} pcs',
           remaining: '${usage.remainingPieces.toStringAsFixed(0)} pièces restantes',
-          ratio: subscription.includedPieces > 0
-              ? ((subscription.includedPieces - usage.remainingPieces) / subscription.includedPieces).clamp(0.0, 1.0)
-              : 0.0,
-          color: _barColor(subscription.includedPieces > 0
-              ? ((subscription.includedPieces - usage.remainingPieces) / subscription.includedPieces).clamp(0.0, 1.0)
-              : 0.0),
+          ratio: _piecesRatio(subscription, usage),
+          color: _barColor(_piecesRatio(subscription, usage)),
         ),
         const SizedBox(height: 12),
         // Commandes ce mois.
@@ -321,6 +317,13 @@ class _Dashboard extends StatelessWidget {
         const SizedBox(height: 8),
       ],
     );
+  }
+
+  /// Ratio de consommation des pièces, clampé à [0,1].
+  static double _piecesRatio(ActiveSubscription sub, SubscriptionUsage usage) {
+    if (sub.includedPieces <= 0) return 0.0;
+    return ((sub.includedPieces - usage.remainingPieces) / sub.includedPieces)
+        .clamp(0.0, 1.0);
   }
 
   /// Vert < 70%, orange 70-90%, rouge > 90%.
@@ -397,6 +400,8 @@ class _PlanHeaderCard extends StatelessWidget {
   }
 }
 
+/// Étiquette de section réutilisable dans les écrans abonnement.
+/// Importée par [SubscribeConfirmScreen] via `show SubscriptionSectionLabel`.
 class SubscriptionSectionLabel extends StatelessWidget {
   const SubscriptionSectionLabel(this.text, {super.key});
   final String text;

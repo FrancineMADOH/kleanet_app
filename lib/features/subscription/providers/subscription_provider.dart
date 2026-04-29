@@ -108,22 +108,19 @@ class SubscriptionProvider extends ChangeNotifier {
 
     try {
       _subscription = await _repository.subscribe(planId);
-      _isSubscribing = false;
-      notifyListeners();
       return true;
     } on ApiException catch (e) {
       _subscribeError = e.message;
-      _isSubscribing = false;
-      notifyListeners();
       return false;
     } on Exception catch (e, stack) {
       if (kDebugMode) {
         debugPrint('[SubscriptionProvider] subscribe error: $e\n$stack');
       }
       _subscribeError = 'Erreur lors de la souscription.';
+      return false;
+    } finally {
       _isSubscribing = false;
       notifyListeners();
-      return false;
     }
   }
 }
