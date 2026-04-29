@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../shared/utils/currency_utils.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../models/order_models.dart';
@@ -50,6 +51,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 1),
       body: _buildBody(provider),
     );
   }
