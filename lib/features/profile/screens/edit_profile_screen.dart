@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -87,6 +88,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
       body: Form(
         key: _formKey,
         child: ListView(
