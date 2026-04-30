@@ -97,9 +97,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             _NotesCard(notes: order.notes!),
           ],
           // Bouton "Laisser un avis" — visible uniquement pour les commandes
-          // livrées. La référence commande est passée en extra pour l'affichage
-          // dans le formulaire.
-          if (order.status == OrderStatus.delivered) ...[
+          // livrées ET sans feedback existant (has_feedback renvoyé par l'API).
+          if (order.status == OrderStatus.delivered && !order.hasFeedback) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

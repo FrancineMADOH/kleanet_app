@@ -127,6 +127,7 @@ class Order {
     this.dateReady,
     this.notes,
     this.trackingUrl,
+    this.hasFeedback = false,
   });
 
   final int id;
@@ -140,6 +141,10 @@ class Order {
   final DateTime? dateReady;
   final String? notes;
   final String? trackingUrl;
+  /// True si un feedback a déjà été soumis pour cette commande.
+  /// Renvoyé par l'API (GET /orders/{id}) dès que le backend expose
+  /// le champ has_feedback. Défaut false pour compatibilité ascendante.
+  final bool hasFeedback;
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
         id: (json['id'] as num).toInt(),
@@ -152,6 +157,7 @@ class Order {
         dateReady: _parseDate(json['date_ready']),
         notes: json['notes'] as String?,
         trackingUrl: json['tracking_url'] as String?,
+        hasFeedback: json['has_feedback'] as bool? ?? false,
         lines: (json['lines'] as List<dynamic>? ?? [])
             .map((e) => OrderLine.fromJson(e as Map<String, dynamic>))
             .toList(),
