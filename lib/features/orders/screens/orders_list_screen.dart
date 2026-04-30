@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/utils/currency_utils.dart';
+import '../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../models/order_models.dart';
@@ -71,7 +72,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         title: const Text('Mes commandes'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        leading: BackButton(
+          color: Colors.white,
+          onPressed: () => context.go(Routes.home),
+        ),
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 1),
       body: Column(
         children: [
           // Barre de filtres — toujours visible, même pendant le chargement.
