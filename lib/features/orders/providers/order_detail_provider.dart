@@ -16,6 +16,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../feedback/services/feedback_storage.dart';
 import '../models/order_models.dart';
 import '../repositories/order_repository.dart';
 
@@ -31,11 +32,16 @@ class OrderDetailProvider extends ChangeNotifier {
   Order? _order;
   bool _isLoading = false;
   String? _errorMessage;
+  // Fallback local : true si un feedback a été soumis depuis cet appareil,
+  // même si l'API renvoie encore has_feedback: false (Odoo pas encore upgradé).
+  bool _localHasFeedback = false;
 
   Order? get order => _order;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasData => _order != null;
+  /// Combine le champ API (has_feedback) et la persistance locale.
+  bool get hasFeedback => (_order?.hasFeedback ?? false) || _localHasFeedback;
 
   /// Charge (ou recharge) la commande. Idempotent : appels concurrents
   /// sont ignorés pendant qu'un fetch est en vol.
@@ -47,6 +53,10 @@ class OrderDetailProvider extends ChangeNotifier {
 
     try {
       _order = await _repository.getOrderById(orderId);
+      // Vérifie le cache local si l'API ne signale pas encore has_feedback.
+      if (!(_order?.hasFeedback ?? false)) {
+        _localHasFeedback = await FeedbackStorage.hasSubmitted(orderId);
+      }
     } on ApiException catch (e) {
       // Si on n'a aucune donnée en cache, on affiche l'erreur. Sinon
       // on garde l'ancien snapshot affiché et on log discrètement.

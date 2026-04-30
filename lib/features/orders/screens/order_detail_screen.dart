@@ -96,9 +96,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const SizedBox(height: 8),
             _NotesCard(notes: order.notes!),
           ],
-          // Bouton "Laisser un avis" — visible uniquement pour les commandes
-          // livrées ET sans feedback existant (has_feedback renvoyé par l'API).
-          if (order.status == OrderStatus.delivered && !order.hasFeedback) ...[
+          // Bouton "Laisser un avis" — masqué si has_feedback (API) ou si
+          // l'orderId est dans le cache local (soumis depuis cet appareil).
+          if (order.status == OrderStatus.delivered && !provider.hasFeedback) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

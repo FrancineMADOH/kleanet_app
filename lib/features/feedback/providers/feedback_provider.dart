@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../../../core/api/api_exception.dart';
 import '../models/feedback_models.dart';
 import '../repositories/feedback_repository.dart';
+import '../services/feedback_storage.dart';
 
 /// Gère l'état du formulaire de feedback.
 ///
@@ -99,6 +100,9 @@ class FeedbackProvider extends ChangeNotifier {
         wouldRecommend: _wouldRecommend,
       ));
       _submitted = true;
+      // Persistance locale : le bouton disparaît immédiatement sans attendre
+      // que l'API expose has_feedback: true (upgrade Odoo + API requis).
+      await FeedbackStorage.markSubmitted(orderId);
     } on ApiException catch (e) {
       // 409 = commande déjà notée — message clair pour l'utilisateur.
       _error = e.statusCode == 409
