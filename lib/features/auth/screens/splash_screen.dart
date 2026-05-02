@@ -9,7 +9,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_text_styles.dart';
 
 /// Splash statique affichant le logo Kleanet sur fond gradient.
 /// Voir `app_router.dart` pour la logique qui déclenche sa sortie.
@@ -22,24 +21,16 @@ class SplashScreen extends StatelessWidget {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+        color: AppColors.background,
         child: SafeArea(
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
-                  'assets/images/logo/logo_complet.png',
+                  'assets/images/logo/logo_kleanet_with_tag.png',
                   width: 220,
                   fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Laverie à domicile à Yaoundé',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
                 ),
                 const SizedBox(height: 48),
                 const SizedBox(
@@ -47,7 +38,7 @@ class SplashScreen extends StatelessWidget {
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                    valueColor: AlwaysStoppedAnimation(AppColors.primary),
                   ),
                 ),
               ],

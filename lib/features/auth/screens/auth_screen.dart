@@ -31,7 +31,7 @@ class AuthScreen extends StatelessWidget {
               children: [
                 const Spacer(flex: 2),
                 Image.asset(
-                  'assets/images/logo/logo_complet.png',
+                  'assets/images/logo/logo_kleanet_with_tag.png',
                   width: 180,
                   fit: BoxFit.contain,
                 ),

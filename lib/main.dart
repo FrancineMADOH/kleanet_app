@@ -13,11 +13,14 @@
 
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'core/api/api_client.dart';
+import 'features/notifications/services/notification_service.dart';
+import 'firebase_options.dart';
 import 'core/auth/token_storage.dart';
 import 'core/config/env.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -35,6 +38,8 @@ import 'features/subscription/repositories/subscription_repository.dart';
 /// dans ce fichier, seulement du câblage d'initialisation.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService.instance.init();
   await Env.load();
   if (kDebugMode) {
     debugPrint('[Kleanet] env=${Env.envName} apiBaseUrl=${Env.apiBaseUrl}');
