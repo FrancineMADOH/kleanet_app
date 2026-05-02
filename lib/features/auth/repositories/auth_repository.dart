@@ -79,6 +79,16 @@ class AuthRepository {
     );
   }
 
+  /// Envoie le FCM token au backend pour activer les push notifications.
+  /// Fire-and-forget : les erreurs sont loggées mais n'interrompent pas
+  /// le flux de login. Appelé après verifyOtp() et après bootstrap().
+  Future<void> updateFcmToken(String token) async {
+    await _apiClient.patch<void>(
+      ApiEndpoints.profile,
+      data: {'fcm_token': token},
+    );
+  }
+
   /// Révoque le refresh token côté backend (optionnel — on peut logout
   /// localement sans attendre cet appel, mais c'est plus propre).
   Future<void> logout(String refreshToken) async {

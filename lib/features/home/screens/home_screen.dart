@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../notifications/providers/notification_provider.dart';
 import '../../subscription/providers/subscription_provider.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../catalog/models/catalog_models.dart';
@@ -111,6 +112,47 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(_appBarTitle),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          // Cloche avec badge non-lu — consomme NotificationProvider.
+          Consumer<NotificationProvider>(
+            builder: (_, notifProvider, __) {
+              final unread = notifProvider.unreadCount;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    tooltip: 'Notifications',
+                    onPressed: () => context.push(Routes.notifications),
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            unread > 9 ? '9+' : '$unread',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       // IndexedStack conserve l'état de chaque onglet en mémoire —
       // OrdersListScreen ne recharge pas ses données lors d'un retour sur l'onglet.

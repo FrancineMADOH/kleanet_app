@@ -1,24 +1,31 @@
 // Service FCM — initialisation Firebase Messaging et gestion des messages.
 //
 // Trois cas couverts :
-//   - Foreground : message reçu pendant que l'app est ouverte (callback onMessage).
-//   - Background/terminé → tap : l'utilisateur tape la notif → app s'ouvre
-//     (getInitialMessage + onMessageOpenedApp).
-//   - Background handler (top-level) : traitement silencieux sans UI.
+//   - Foreground : message reçu pendant que l'app est ouverte → stocké dans
+//     NotificationProvider (badge mis à jour).
+//   - Background/terminé → tap : l'utilisateur tape la notif → navigation
+//     vers la bonne commande via le callback [onNotificationTap].
+//   - Background handler (top-level) : Firebase exige une fonction top-level,
+//     pas une méthode — déclarée ci-dessous.
 //
-// Le FCM token est loggé en debug. Quand l'API Fastify sera prête (étape
-// NOTIFICATIONS-02), on l'enverra via un endpoint /devices/register.
+// Câblage dans main.dart :
+//   1. NotificationService.instance.notificationProvider = provider;
+//   2. NotificationService.instance.onNotificationTap = (msg) { ... };
+//   3. await NotificationService.instance.init();
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-/// Handler background — doit être une fonction top-level (pas une méthode).
-/// Appelé par Firebase quand l'app est en arrière-plan ou terminée.
+import '../providers/notification_provider.dart';
+
+/// Handler background — doit être une fonction top-level (contrainte Firebase).
 @pragma('vm:entry-point')
-Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   if (kDebugMode) {
     debugPrint('[FCM] background: ${message.messageId} — ${message.notification?.title}');
   }
+  // Pas d'accès à NotificationProvider ici (isolat séparé).
+  // Le message apparaîtra dans la barre de notification système.
 }
 
 class NotificationService {
@@ -27,17 +34,19 @@ class NotificationService {
 
   final _messaging = FirebaseMessaging.instance;
 
-  // Callback injecté par main.dart pour naviguer vers un écran précis
-  // quand l'utilisateur tape une notification (ex: /order/:id).
+  /// Injecté depuis main.dart — permet de stocker les notifs reçues.
+  NotificationProvider? notificationProvider;
+
+  /// Injecté depuis main.dart — permet de naviguer vers une commande
+  /// quand l'utilisateur tape une notification.
   void Function(RemoteMessage)? onNotificationTap;
 
-  /// Initialise FCM : permissions, handlers, token.
-  /// Appelé UNE seule fois depuis main(), après Firebase.initializeApp().
+  /// Initialise FCM : enregistre le handler background, demande la
+  /// permission, configure les 3 listeners, et log le token.
   Future<void> init() async {
-    // Enregistre le handler background avant tout le reste.
-    FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
-    // Demande la permission (Android 13+ / iOS).
+    // Demande la permission d'envoi de notifications (Android 13+ / iOS).
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -47,44 +56,52 @@ class NotificationService {
       debugPrint('[FCM] permission: ${settings.authorizationStatus}');
     }
 
-    // Token — sera envoyé à l'API pour cibler cet appareil.
+    // Token initial — envoyé à l'API par AuthProvider après login.
     final token = await _messaging.getToken();
     if (kDebugMode) {
       debugPrint('[FCM] token: $token');
     }
 
-    // Renouvellement automatique du token (ex: réinstallation).
+    // Renouvellement du token (réinstallation, effacement de données…).
     _messaging.onTokenRefresh.listen((newToken) {
       if (kDebugMode) {
         debugPrint('[FCM] token refreshed: $newToken');
       }
-      // TODO(NOTIFICATIONS-02): envoyer newToken à l'API.
+      // TODO(NOTIFICATIONS-02): envoyer newToken à l'API via AuthRepository.
     });
 
-    // Message foreground (app ouverte).
+    // Message reçu quand l'app est au premier plan.
     FirebaseMessaging.onMessage.listen(_handleForeground);
 
-    // Tap sur notif quand l'app était en arrière-plan.
+    // Tap sur la notification système quand l'app était en arrière-plan.
     FirebaseMessaging.onMessageOpenedApp.listen(_handleTap);
 
-    // Tap sur notif quand l'app était terminée (cold start).
+    // Tap sur la notification qui a relancé l'app depuis l'état terminé.
     final initial = await _messaging.getInitialMessage();
     if (initial != null) {
       _handleTap(initial);
     }
   }
 
+  /// Retourne le FCM token courant. Appelé par AuthProvider après login
+  /// pour l'envoyer au backend (PATCH /profile).
+  Future<String?> getToken() => _messaging.getToken();
+
   void _handleForeground(RemoteMessage message) {
     if (kDebugMode) {
-      debugPrint('[FCM] foreground: ${message.notification?.title} — ${message.notification?.body}');
+      debugPrint('[FCM] foreground: ${message.notification?.title}');
     }
-    // TODO(NOTIFICATIONS-02): afficher un SnackBar ou une bannière in-app.
+    // Stocke la notification dans le provider (badge + centre notifs).
+    notificationProvider?.addFromMessage(message);
   }
 
   void _handleTap(RemoteMessage message) {
     if (kDebugMode) {
       debugPrint('[FCM] tapped: ${message.data}');
     }
+    // Stocke d'abord (cas cold-start : la notif n'a pas encore été ajoutée).
+    notificationProvider?.addFromMessage(message);
+    // Puis navigue.
     onNotificationTap?.call(message);
   }
 }

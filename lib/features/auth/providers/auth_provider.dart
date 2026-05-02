@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/auth/token_storage.dart';
+import '../../../features/notifications/services/notification_service.dart';
 import '../models/auth_models.dart';
 import '../repositories/auth_repository.dart';
 
@@ -103,6 +104,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       _profile = await _authRepository.fetchProfile();
       _setStatus(AuthStatus.authenticated);
+      // Envoie le FCM token en fire-and-forget — non bloquant pour le boot.
+      unawaited(_sendFcmToken());
     } on Exception catch (e) {
       // 401 → ApiClient a déjà tenté un refresh et/ou wipe les tokens.
       // Tout autre cas (réseau down, 500) → on préfère débloquer l'app
@@ -181,13 +184,13 @@ class AuthProvider extends ChangeNotifier {
       try {
         _profile = await _authRepository.fetchProfile();
       } on Exception catch (e) {
-        // Profil non bloquant : la session est OK, l'UI home re-fetchera.
-        // On log quand même pour pouvoir diagnostiquer si ça arrive.
         if (kDebugMode) {
           debugPrint('[AuthProvider] post-verify profile fetch failed: $e');
         }
       }
       _setStatus(AuthStatus.authenticated);
+      // Envoie le FCM token après login — non bloquant.
+      unawaited(_sendFcmToken());
       return true;
     } on ApiException catch (_) {
       await _registerFailedAttempt();
@@ -250,6 +253,26 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _isUpdatingProfile = false;
       notifyListeners();
+    }
+  }
+
+  // --- FCM token ---
+
+  /// Récupère le FCM token et l'envoie au backend via PATCH /profile.
+  /// Silencieux en cas d'erreur — ne pas bloquer l'expérience utilisateur
+  /// si Firebase est temporairement indisponible.
+  Future<void> _sendFcmToken() async {
+    try {
+      final token = await NotificationService.instance.getToken();
+      if (token == null) return;
+      await _authRepository.updateFcmToken(token);
+      if (kDebugMode) {
+        debugPrint('[AuthProvider] FCM token envoyé au backend');
+      }
+    } on Exception catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthProvider] FCM token send failed (non-bloquant): $e');
+      }
     }
   }
 

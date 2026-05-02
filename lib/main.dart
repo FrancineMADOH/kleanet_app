@@ -19,6 +19,8 @@ import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'core/api/api_client.dart';
+import 'core/router/app_router.dart';
+import 'features/notifications/providers/notification_provider.dart';
 import 'features/notifications/services/notification_service.dart';
 import 'firebase_options.dart';
 import 'core/auth/token_storage.dart';
@@ -39,7 +41,6 @@ import 'features/subscription/repositories/subscription_repository.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await NotificationService.instance.init();
   await Env.load();
   if (kDebugMode) {
     debugPrint('[Kleanet] env=${Env.envName} apiBaseUrl=${Env.apiBaseUrl}');
@@ -114,6 +115,27 @@ Future<void> main() async {
     repository: subscriptionRepository,
   );
 
+  // NotificationProvider : construit ici pour être passé à la fois au router
+  // (via NotificationService) et à KleanetApp (MultiProvider).
+  final notificationProvider = NotificationProvider();
+  await notificationProvider.load();
+
+  // Router construit ici (et non dans KleanetApp) pour que NotificationService
+  // puisse y accéder avant runApp et naviguer sur tap cold-start.
+  final router = buildAppRouter(authProvider);
+
+  // Câblage FCM : injecter le provider et le callback de navigation.
+  final notifService = NotificationService.instance;
+  notifService.notificationProvider = notificationProvider;
+  notifService.onNotificationTap = (message) {
+    final type = message.data['type'] as String?;
+    final orderId = message.data['order_id'] as String?;
+    if (type == 'order_status' && orderId != null) {
+      router.go(Routes.orderDetail(orderId));
+    }
+  };
+  await notifService.init();
+
   runApp(KleanetApp(
     tokenStorage: tokenStorage,
     authProvider: authProvider,
@@ -123,5 +145,7 @@ Future<void> main() async {
     orderRepository: orderRepository,
     ordersListProvider: ordersListProvider,
     subscriptionProvider: subscriptionProvider,
+    notificationProvider: notificationProvider,
+    router: router,
   ));
 }

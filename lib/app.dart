@@ -10,13 +10,14 @@
 // navigation à chaque notifyListeners() de AuthProvider.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'core/api/api_client.dart';
 import 'core/auth/token_storage.dart';
-import 'core/router/app_router.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/providers/catalog_provider.dart';
+import 'features/notifications/providers/notification_provider.dart';
 import 'features/orders/providers/order_draft_provider.dart';
 import 'features/orders/providers/orders_list_provider.dart';
 import 'features/orders/repositories/order_repository.dart';
@@ -37,6 +38,8 @@ class KleanetApp extends StatefulWidget {
     required this.orderRepository,
     required this.ordersListProvider,
     required this.subscriptionProvider,
+    required this.notificationProvider,
+    required this.router,
   });
 
   final TokenStorage tokenStorage;
@@ -47,13 +50,16 @@ class KleanetApp extends StatefulWidget {
   final OrderRepository orderRepository;
   final OrdersListProvider ordersListProvider;
   final SubscriptionProvider subscriptionProvider;
+  final NotificationProvider notificationProvider;
+  // Le router est construit dans main.dart pour que NotificationService
+  // puisse y accéder avant runApp (navigation sur tap cold-start).
+  final GoRouter router;
 
   @override
   State<KleanetApp> createState() => _KleanetAppState();
 }
 
 class _KleanetAppState extends State<KleanetApp> {
-  late final _router = buildAppRouter(widget.authProvider);
 
   @override
   Widget build(BuildContext context) {
@@ -69,23 +75,21 @@ class _KleanetAppState extends State<KleanetApp> {
         ChangeNotifierProvider<OrderDraftProvider>.value(
           value: widget.orderDraftProvider,
         ),
-        // OrdersListProvider au niveau racine : l'onglet Commandes de HomeScreen
-        // (IndexedStack) en a besoin sans factory scoped. L'instance est partagée
-        // avec la route /orders dans app_router.dart (la route crée sa propre
-        // factory — les deux coexistent sans conflit car la route pop son scope
-        // à la fermeture de l'écran).
         ChangeNotifierProvider<OrdersListProvider>.value(
           value: widget.ordersListProvider,
         ),
         ChangeNotifierProvider<SubscriptionProvider>.value(
           value: widget.subscriptionProvider,
         ),
+        ChangeNotifierProvider<NotificationProvider>.value(
+          value: widget.notificationProvider,
+        ),
       ],
       child: MaterialApp.router(
         title: 'Kleanet',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
-        routerConfig: _router,
+        routerConfig: widget.router,
       ),
     );
   }

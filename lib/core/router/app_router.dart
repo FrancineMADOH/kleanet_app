@@ -39,6 +39,7 @@ import '../../features/feedback/providers/feedback_provider.dart';
 import '../../features/feedback/screens/feedback_form_screen.dart';
 import '../../features/feedback/screens/feedback_success_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/subscription/screens/subscription_hub_screen.dart';
 
 /// Catalogue centralisé des chemins de route. Les chemins littéraux ne
@@ -69,6 +70,9 @@ class Routes {
   static String faqArticle(String id) => '/faq/$id';
   // Pattern GoRoute (avec placeholder :id) — utilisé côté déclaration.
   static const faqArticlePattern = '/faq/:id';
+
+  // Centre de notifications.
+  static const notifications = '/notifications';
 
   // Feedback — accessible uniquement depuis une commande livrée.
   // orderId passé en path param, référence commande passée en extra (String?).
@@ -251,6 +255,10 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
       GoRoute(
         path: Routes.feedbackSuccess,
         builder: (_, __) => const FeedbackSuccessScreen(),
+      ),
+      GoRoute(
+        path: Routes.notifications,
+        builder: (_, __) => const NotificationsScreen(),
       ),
       GoRoute(
         path: Routes.orderDetailPattern,
