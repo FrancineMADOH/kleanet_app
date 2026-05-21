@@ -6,6 +6,45 @@
 
 ---
 
+## ⚡ PROCHAINE SESSION — Étapes immédiates (à faire AVANT tout autre dev)
+
+> Ces étapes sont **manuelles** (pas de code à écrire) et **bloquantes** pour tester
+> la chaîne complète Odoo → Fastify → FCM → téléphone.
+
+### Étape 1 — Clé de service Firebase (5 min)
+1. Firebase Console → Paramètres du projet → onglet **Comptes de service**
+2. Cliquer **"Générer une nouvelle clé privée"** → télécharger le JSON
+3. Ajouter dans `kleanet_api/.env` :
+   ```
+   FIREBASE_PROJECT_ID=kleanet-xxxxx
+   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@kleanet-xxxxx.iam.gserviceaccount.com
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nXXX...\n-----END PRIVATE KEY-----\n"
+   WEBHOOK_SECRET=<chaine_secrete_au_moins_16_chars>
+   ```
+
+### Étape 2 — Paramètres système Odoo (2 min)
+Dans Odoo → Paramètres → Technique → **Paramètres système** (activer mode dev si nécessaire) :
+- `kleanet.fastify_url` → `http://localhost:3000`
+- `kleanet.webhook_secret` → même valeur que `WEBHOOK_SECRET` dans le `.env` Fastify
+
+### Étape 3 — Upgrade module Odoo (1 min)
+Dans Odoo → Applications → chercher **bw_kleanet** → cliquer **Mettre à jour**
+(installe le champ `x_fcm_token` sur `res.partner` et le trigger `write()` sur les commandes)
+
+### Étape 4 — Redémarrer l'API Fastify
+```bash
+# Dans le terminal kleanet_api/
+npm run dev
+```
+Vérifier dans les logs : `[kleanet-api] Firebase Admin initialisé.`
+
+### Étape 5 — Test bout-en-bout
+1. Ouvrir l'app mobile → se connecter (envoie le FCM token au backend)
+2. Dans Odoo → ouvrir une commande → cliquer **Marquer comme reçue** (ou autre transition)
+3. La push notification doit arriver sur le téléphone en quelques secondes
+
+---
+
 ## Auth
 
 | # | Fonctionnalité | Origine | Fichier(s) |
@@ -65,8 +104,8 @@
 
 | # | Fonctionnalité | Origine | Fichier(s) |
 |---|---------------|---------|-----------|
-| SP-01 | **SUPPORT-01** — FAQ catégories + articles | Étape non démarrée | À créer — `features/faq/` |
-| SP-02 | **FEEDBACK-01** — formulaire de feedback | Étape non démarrée | À créer — `features/feedback/` |
+| SP-01 | ~~**SUPPORT-01** — FAQ catégories + articles~~ ✅ **FAIT** | Implémenté | `features/faq/` |
+| SP-02 | ~~**FEEDBACK-01** — formulaire de feedback~~ ✅ **FAIT** | Implémenté | `features/feedback/` |
 
 ---
 
@@ -74,7 +113,9 @@
 
 | # | Fonctionnalité | Origine | Fichier(s) |
 |---|---------------|---------|-----------|
-| N-01 | **NOTIFICATIONS-01** — Push Firebase FCM | Étape non démarrée (dépend de PROFILE-01) | À créer — `features/notifications/` + `firebase_messaging` |
+| N-01 | ~~**NOTIFICATIONS-01** — Push Firebase FCM~~ ✅ **FAIT** | Implémenté 2026-05-02 | `features/notifications/` — service, provider, écran, badge AppBar |
+| N-02 | **Chaîne complète Odoo→Fastify→FCM** — configuration Firebase + webhook | Code écrit 2026-05-02, **config manuelle en attente** (voir ⚡ ci-dessus) | `kleanet_api/.env`, Odoo params système, upgrade module |
+| N-03 | **Bannière in-app foreground** — afficher la notif visuellement quand l'app est ouverte | TODO dans `notification_service.dart:81` | `notification_service.dart` — SnackBar ou overlay custom |
 
 ---
 
@@ -116,4 +157,4 @@
 
 ---
 
-*Dernière mise à jour : 2026-04-23*
+*Dernière mise à jour : 2026-05-02*

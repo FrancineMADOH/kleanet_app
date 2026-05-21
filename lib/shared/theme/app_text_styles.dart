@@ -22,22 +22,22 @@ class AppTextStyles {
 
   /// Titre d'accueil / page principale (32sp bold).
   static TextStyle get displayLarge => GoogleFonts.inter(
-        fontSize: 32,
+        fontSize: 40,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       );
 
   /// Titre de section / sous-titre (22sp semi-bold).
   static TextStyle get headlineMedium => GoogleFonts.inter(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
+        fontSize: 26,
+        fontWeight: FontWeight.w800,
         color: AppColors.textPrimary,
       );
 
   /// Texte courant — descriptions, libellés secondaires (14sp regular).
   static TextStyle get bodyMedium => GoogleFonts.inter(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
       );
 }
