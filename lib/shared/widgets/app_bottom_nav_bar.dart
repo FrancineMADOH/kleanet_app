@@ -56,21 +56,13 @@ class AppBottomNavBar extends StatelessWidget {
   }
 
   void _onTap(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go(Routes.home);
-      case 1:
-        context.go(Routes.orders);
-      case 2:
-        context.go(Routes.subscription);
-      case 3:
-        // Dépile vers l'écran parent (HomeScreen onglet Profil) si possible,
-        // sinon remplace la stack par HomeScreen (onglet Accueil par défaut).
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go(Routes.home);
-        }
+    // Même onglet → dépiler si possible (ex: retour liste commandes depuis détail).
+    if (index == currentIndex && context.canPop()) {
+      context.pop();
+      return;
     }
+    // Atterrir dans HomeScreen avec l'onglet demandé via query param ?tab=N.
+    // HomeScreen lit ce param dans didChangeDependencies pour afficher le bon onglet.
+    context.go('${Routes.home}?tab=$index');
   }
 }

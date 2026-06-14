@@ -36,10 +36,12 @@ class PhoneUtils {
       withPlus = trimmed;
     } else if (trimmed.startsWith('00')) {
       withPlus = '+${trimmed.substring(2)}';
-    } else if (trimmed.length == _cmLocalLength && trimmed.startsWith('6')) {
+    } else if (trimmed.length == _cmLocalLength &&
+        (trimmed.startsWith('6') || trimmed.startsWith('7'))) {
+      // Mobiles 6XX (MTN/Orange) et 7XX (Nexttel/Viettel)
       withPlus = '$defaultCountryCode$trimmed';
     } else if (trimmed.length == _cmLocalLength + 1 &&
-        trimmed.startsWith('06')) {
+        (trimmed.startsWith('06') || trimmed.startsWith('07'))) {
       withPlus = '$defaultCountryCode${trimmed.substring(1)}';
     } else {
       return null;

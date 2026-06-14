@@ -64,11 +64,29 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Déclenche un load() post-frame — la méthode est idempotente et
-    // respecte le cache si déjà peuplé en mémoire par le preload main.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Lire l'onglet demandé via ?tab=N (navigation depuis AppBottomNavBar externe).
+      final tabStr = GoRouterState.of(context).uri.queryParameters['tab'];
+      if (tabStr != null) {
+        final tab = int.tryParse(tabStr)?.clamp(0, 3);
+        if (tab != null) setState(() => _currentIndex = tab);
+      }
       context.read<CatalogProvider>().load();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Réagit aux navigations GoRouter vers /home?tab=N depuis un écran externe
+    // (AppBottomNavBar dans order_detail, FAQ, etc.).
+    final tabStr = GoRouterState.of(context).uri.queryParameters['tab'];
+    if (tabStr == null) return;
+    final requested = int.tryParse(tabStr)?.clamp(0, 3);
+    if (requested != null && requested != _currentIndex) {
+      setState(() => _currentIndex = requested);
+    }
   }
 
   Future<void> _refresh() async {
@@ -242,10 +260,12 @@ class _HomeScreenState extends State<HomeScreen> {
           : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        // Pas de reset de _subTab ici — l'IndexedStack interne préserve
-        // l'état du sous-écran actif. Le hub affiche le bon état (pending,
-        // actif, vente) car le provider est watché en continu.
-        onTap: (index) => setState(() => _currentIndex = index),
+        // Sync l'URL à chaque switch interne (?tab=N) pour que didChangeDependencies
+        // retrouve le bon onglet si l'user pop depuis un écran pushé au-dessus.
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          context.go('${Routes.home}?tab=$index');
+        },
         selectedItemColor: AppColors.accent1,
         unselectedItemColor: AppColors.textSecondary,
         backgroundColor: Colors.white,

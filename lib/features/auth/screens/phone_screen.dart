@@ -105,7 +105,8 @@ class _PhoneScreenState extends State<PhoneScreen> {
                     autofocus: true,
                     enabled: !isSending,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s]')),
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(9),
                     ],
                     decoration: InputDecoration(
                       filled: true,
@@ -122,8 +123,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Entrez votre numéro.';
+                      final digits = value?.replaceAll(RegExp(r'\s'), '') ?? '';
+                      if (digits.isEmpty) return 'Entrez votre numéro.';
+                      // Cameroun : mobiles 6XX (MTN/Orange) et 7XX (Nexttel/Viettel)
+                      if (digits.length != 9 ||
+                          (!digits.startsWith('6') && !digits.startsWith('7'))) {
+                        return 'Numéro invalide — 9 chiffres commençant par 6 ou 7';
                       }
                       return null;
                     },

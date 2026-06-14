@@ -31,8 +31,8 @@ class AuthScreen extends StatelessWidget {
               children: [
                 const Spacer(flex: 2),
                 Image.asset(
-                  'assets/images/logo/logo_kleanet_with_tag.png',
-                  width: 180,
+                  'assets/images/logo/logo.jpg',
+                  width: 120,
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 16),
@@ -46,7 +46,7 @@ class AuthScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Laverie à domicile à Yaoundé',
+                  'Laverie à domicile',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: Colors.white.withValues(alpha: 0.9),
