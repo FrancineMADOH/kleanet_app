@@ -95,16 +95,21 @@ class CatalogProvider extends ChangeNotifier {
   /// Cherche la règle de prix applicable à un type de vêtement donné.
   /// Logique de match (par nom, car le backend ne fournit pas d'ID FK) :
   ///   1. Si `material` est fourni → cherche une rule avec material_name
-  ///      ET garment_type_name correspondants.
-  ///   2. Sinon → cherche une rule avec `garment_type_name` correspondant.
-  ///   3. Fallback : une rule générique sans garment_type_name (ex: tarif
-  ///      "au kilo" global).
+  ///      ET garment_type_name correspondants (exact match matière).
+  ///   2. Sans matière → préférer la rule générique (materialName == null)
+  ///      associée au type, pour éviter de retomber sur une règle matière-
+  ///      spécifique par accident (ex: "Pantalon Denim 800" au lieu de
+  ///      "Pantalon standard 700").
+  ///   3. Fallback type : première rule qui matche garment_type_name, quelle
+  ///      que soit la matière.
+  ///   4. Fallback global : rule sans type ni matière (tarif "au kilo" global).
   ///
   /// Retourne `null` si aucune règle ne matche — l'UI doit afficher
   /// "prix sur demande" ou cacher l'article.
   PricingRule? findPriceFor(GarmentType type, {String? material}) {
     final mat = material ?? type.defaultMaterial;
 
+    // Étape 1 — exact match matière + type.
     if (mat != null) {
       final exact = pricingRules.firstWhereOrNull(
         (r) => r.garmentTypeName == type.name && r.materialName == mat,
@@ -112,11 +117,22 @@ class CatalogProvider extends ChangeNotifier {
       if (exact != null) return exact;
     }
 
+    // Étape 2 — règle générique pour ce type (sans matière spécifique).
+    // Prioritaire sur les règles matière-spécifiques quand aucune matière
+    // n'est connue, sinon firstWhereOrNull retournerait la première règle
+    // dans l'ordre Odoo — qui peut être une règle Denim ou autre.
+    final generic = pricingRules.firstWhereOrNull(
+      (r) => r.garmentTypeName == type.name && r.materialName == null,
+    );
+    if (generic != null) return generic;
+
+    // Étape 3 — n'importe quelle rule pour ce type (fallback matière).
     final byType = pricingRules.firstWhereOrNull(
       (r) => r.garmentTypeName == type.name,
     );
     if (byType != null) return byType;
 
+    // Étape 4 — rule globale sans type ni matière.
     return pricingRules.firstWhereOrNull(
       (r) => r.garmentTypeName == null && r.materialName == null,
     );
