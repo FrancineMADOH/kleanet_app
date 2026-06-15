@@ -47,21 +47,21 @@ class ApiException implements Exception {
 
     final data = response.data;
     String code = 'UNKNOWN';
-    String message = 'Une erreur est survenue.';
 
     // L'API Fastify renvoie toujours un JSON {code, message} ou {error, message}
     // pour les erreurs — on s'accommode des deux variantes.
     if (data is Map<String, dynamic>) {
       final rawCode = data['code'] ?? data['error'];
       if (rawCode is String) code = rawCode;
-      final rawMessage = data['message'];
-      if (rawMessage is String) message = rawMessage;
     }
 
+    // Le message est toujours traduit en français depuis le code métier.
+    // On n'affiche jamais le message anglais brut de l'API — le code est
+    // stable, le message peut changer ou varier selon la version de l'API.
     return ApiException(
       statusCode: response.statusCode ?? 0,
       code: code,
-      message: message,
+      message: _frenchMessage(code),
     );
   }
 
@@ -95,6 +95,68 @@ class ApiException implements Exception {
       case DioExceptionType.badResponse:
       case DioExceptionType.unknown:
         return 'Erreur réseau inattendue.';
+    }
+  }
+
+  /// Traduit un code d'erreur métier API en message français lisible.
+  /// Centraliser ici évite que les messages anglais bruts de l'API
+  /// remontent dans les SnackBars et écrans d'erreur.
+  static String _frenchMessage(String code) {
+    switch (code) {
+      // Auth
+      case 'INVALID_OTP':
+        return 'Code incorrect. Vérifiez et réessayez.';
+      case 'EXPIRED_OTP':
+        return 'Code expiré. Demandez un nouveau code.';
+      case 'MAX_ATTEMPTS_REACHED':
+        return 'Trop de tentatives. Attendez 10 minutes avant de réessayer.';
+      case 'TOO_MANY_REQUESTS':
+        return 'Trop de requêtes. Attendez quelques instants.';
+      case 'TOO_SOON':
+        return 'Délai trop court. Attendez avant de demander un nouveau code.';
+      case 'DUPLICATE_ACCOUNT':
+        return 'Ce numéro est déjà associé à un autre compte.';
+      case 'INVALID_GOOGLE_TOKEN':
+        return 'Connexion Google invalide ou expirée. Réessayez.';
+      case 'INVALID_FACEBOOK_TOKEN':
+        return 'Connexion Facebook invalide ou expirée. Réessayez.';
+      case 'INVALID_REFRESH_TOKEN':
+      case 'UNAUTHORIZED':
+        return 'Session invalide. Veuillez vous reconnecter.';
+      case 'FORBIDDEN':
+        return 'Vous n\'avez pas accès à cette ressource.';
+
+      // Commandes
+      case 'ORDER_NOT_FOUND':
+      case 'INVALID_ORDER_ID':
+        return 'Commande introuvable.';
+      case 'ORDER_NOT_DELIVERED':
+        return 'Cette commande n\'a pas encore été livrée.';
+      case 'INVALID_DATE':
+        return 'Date ou heure de collecte invalide.';
+      case 'INVALID_COORDINATES':
+        return 'Coordonnées de livraison invalides.';
+
+      // Abonnements
+      case 'ALREADY_SUBSCRIBED':
+        return 'Vous avez déjà un abonnement actif. Contactez-nous pour changer de plan.';
+      case 'PLAN_NOT_FOUND':
+        return 'Ce plan d\'abonnement n\'existe plus.';
+      case 'PICKUP_QUOTA_EXCEEDED':
+        return 'Quota de pickups atteint pour cette semaine.';
+
+      // Avis
+      case 'ALREADY_REVIEWED':
+        return 'Vous avez déjà laissé un avis pour cette commande.';
+
+      // Profil
+      case 'NOTHING_TO_UPDATE':
+        return 'Aucune modification à enregistrer.';
+
+      // Générique
+      case 'UNKNOWN':
+      default:
+        return 'Une erreur est survenue. Réessayez ou contactez-nous si le problème persiste.';
     }
   }
 }
