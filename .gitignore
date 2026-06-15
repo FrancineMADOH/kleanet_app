@@ -108,3 +108,6 @@ test/failures/
 **/android/app/google-services.json
 **/ios/Runner/GoogleService-Info.plist
 firebase_options.dart
+
+# coding docs
+RAPPORT_RECETTE.md

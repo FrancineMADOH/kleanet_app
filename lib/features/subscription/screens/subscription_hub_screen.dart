@@ -297,19 +297,23 @@ class _Dashboard extends StatelessWidget {
           value: '${usage.ordersThisPeriod}',
         ),
         const SizedBox(height: 12),
-        // Pickups / semaine inclus.
-        _InfoTile(
-          icon: Icons.directions_bike,
-          label: 'Pickups / semaine inclus',
-          value: '${subscription.includedPickupsPerWeek}',
+        // Barre pickups hebdomadaires — rouge quand quota épuisé.
+        _UsageBar(
+          label: 'Pickups cette semaine',
+          used: '${usage.pickupsUsedThisWeek} utilisé(s)',
+          remaining: '${usage.remainingPickupsThisWeek} restant(s) cette semaine',
+          ratio: _pickupsRatio(subscription, usage),
+          color: _barColor(_pickupsRatio(subscription, usage)),
         ),
         const SizedBox(height: 16),
         // Note overage.
         _OverageNote(price: subscription.overagePricePerKg),
         const SizedBox(height: 24),
-        // Bouton pickup principal.
+        // Bouton pickup — désactivé si le quota de la semaine est épuisé.
         ElevatedButton.icon(
-          onPressed: () => context.push(Routes.newOrder),
+          onPressed: usage.remainingPickupsThisWeek == 0
+              ? null
+              : () => context.push(Routes.newOrder),
           icon: const Icon(Icons.directions_bike),
           label: const Text(
             'Planifier un pickup',
@@ -324,6 +328,14 @@ class _Dashboard extends StatelessWidget {
             ),
           ),
         ),
+        if (usage.remainingPickupsThisWeek == 0) ...[
+          const SizedBox(height: 6),
+          const Text(
+            'Quota de pickups atteint pour cette semaine.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
         const SizedBox(height: 10),
         // Bouton secondaire — changer de plan (visible uniquement si callback fourni).
         if (onChangePlan != null)
@@ -346,6 +358,13 @@ class _Dashboard extends StatelessWidget {
         const SizedBox(height: 8),
       ],
     );
+  }
+
+  /// Ratio de consommation des pickups hebdomadaires, clampé à [0,1].
+  static double _pickupsRatio(ActiveSubscription sub, SubscriptionUsage usage) {
+    if (sub.includedPickupsPerWeek <= 0) return 0.0;
+    return (usage.pickupsUsedThisWeek / sub.includedPickupsPerWeek)
+        .clamp(0.0, 1.0);
   }
 
   /// Ratio de consommation des pièces, clampé à [0,1].

@@ -43,10 +43,12 @@ class _NewOrderPickupScreenState extends State<NewOrderPickupScreen> {
     final min = draft.minimumPickupTime;
     final initial = draft.pickupAt ?? min;
 
+    // firstDate = demain minimum : la collecte ne peut pas être le jour même.
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
     final date = await showDatePicker(
       context: context,
-      initialDate: initial,
-      firstDate: DateTime(min.year, min.month, min.day),
+      initialDate: initial.isBefore(tomorrow) ? tomorrow : initial,
+      firstDate: tomorrow,
       lastDate: DateTime.now().add(const Duration(days: 30)),
       helpText: 'Jour de collecte',
     );

@@ -93,6 +93,17 @@ class _SubscribeConfirmScreenState extends State<SubscribeConfirmScreen> {
     });
   }
 
+  @override
+  void didUpdateWidget(SubscribeConfirmScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Réinitialiser _submitted quand le plan change — l'IndexedStack conserve
+    // l'instance en vie entre les sélections et _submitted = true d'une
+    // confirmation précédente masquerait le bouton sur le nouveau plan.
+    if (oldWidget.plan?.id != widget.plan?.id) {
+      setState(() => _submitted = false);
+    }
+  }
+
   Future<void> _confirm() async {
     // 1. Masquer le bouton immédiatement — feedback instantané pour l'utilisateur.
     setState(() => _submitted = true);

@@ -15,6 +15,7 @@
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../providers/notification_provider.dart';
 
@@ -33,6 +34,11 @@ class NotificationService {
   static final NotificationService instance = NotificationService._();
 
   final _messaging = FirebaseMessaging.instance;
+
+  /// Clé injectée dans MaterialApp.router (scaffoldMessengerKey) — permet
+  /// d'afficher un SnackBar banner quand une notif arrive au premier plan,
+  /// sans avoir besoin d'un BuildContext local.
+  final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   /// Injecté depuis main.dart — permet de stocker les notifs reçues.
   NotificationProvider? notificationProvider;
@@ -93,6 +99,41 @@ class NotificationService {
     }
     // Stocke la notification dans le provider (badge + centre notifs).
     notificationProvider?.addFromMessage(message);
+
+    // Affiche un SnackBar banner si le titre est disponible.
+    // scaffoldMessengerKey doit être câblé dans MaterialApp.router.
+    final title = message.notification?.title;
+    final body = message.notification?.body;
+    if (title != null) {
+      scaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              if (body != null)
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF1E3A5F), // AppColors.primary
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   void _handleTap(RemoteMessage message) {

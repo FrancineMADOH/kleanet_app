@@ -100,6 +100,8 @@ class SubscriptionUsage {
     required this.weightUsedKg,
     required this.remainingWeightKg,
     required this.remainingPieces,
+    required this.pickupsUsedThisWeek,
+    required this.remainingPickupsThisWeek,
   });
 
   final int ordersThisPeriod;
@@ -107,14 +109,22 @@ class SubscriptionUsage {
   final double remainingWeightKg;
   /// Pièces restantes avant d'atteindre le quota du plan.
   final double remainingPieces;
+  /// Pickups utilisés sur la semaine ISO en cours (lundi–dimanche UTC+1).
+  final int pickupsUsedThisWeek;
+  /// Pickups restants cette semaine — 0 signifie quota épuisé.
+  final int remainingPickupsThisWeek;
 
   factory SubscriptionUsage.fromJson(Map<String, dynamic> json) =>
       SubscriptionUsage(
         ordersThisPeriod: (json['orders_this_period'] as num).toInt(),
         weightUsedKg: (json['weight_used_kg'] as num).toDouble(),
         remainingWeightKg: (json['remaining_weight_kg'] as num).toDouble(),
-        // Champ optionnel : absent si l'API/Odoo n'a pas encore été mis à jour.
         remainingPieces: (json['remaining_pieces'] as num?)?.toDouble() ?? 0.0,
+        // Nouveaux champs FEAT-01 — défensif : 0 si l'API ne les retourne pas encore.
+        pickupsUsedThisWeek:
+            (json['pickups_used_this_week'] as num?)?.toInt() ?? 0,
+        remainingPickupsThisWeek:
+            (json['remaining_pickups_this_week'] as num?)?.toInt() ?? 0,
       );
 }
 

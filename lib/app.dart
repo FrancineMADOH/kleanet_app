@@ -18,6 +18,7 @@ import 'core/auth/token_storage.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/providers/catalog_provider.dart';
 import 'features/notifications/providers/notification_provider.dart';
+import 'features/notifications/services/notification_service.dart';
 import 'features/orders/providers/order_draft_provider.dart';
 import 'features/orders/providers/orders_list_provider.dart';
 import 'features/orders/repositories/order_repository.dart';
@@ -90,6 +91,9 @@ class _KleanetAppState extends State<KleanetApp> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         routerConfig: widget.router,
+        // Clé injectée dans NotificationService pour afficher les banners
+        // FCM quand l'app est au premier plan (BUG-05).
+        scaffoldMessengerKey: NotificationService.instance.scaffoldMessengerKey,
       ),
     );
   }
